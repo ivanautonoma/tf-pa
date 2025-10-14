@@ -86,17 +86,44 @@ class ProductosView(BaseView):
             # Crear ventana de formulario
             form_window = tk.Toplevel(self.parent_frame.winfo_toplevel())
             form_window.title("Nuevo Producto")
-            form_window.geometry("400x900")
-            form_window.resizable(False, False)
+            form_window.geometry("450x650")
+            form_window.resizable(True, True)
             form_window.configure(bg='white')
+            form_window.minsize(400, 550)
             
             # Centrar ventana
             form_window.transient(self.parent_frame.winfo_toplevel())
             form_window.grab_set()
             
-            # Frame principal
-            main_frame = tk.Frame(form_window, bg='white')
+            # Crear canvas y scrollbar para scroll
+            canvas = tk.Canvas(form_window, bg='white')
+            scrollbar = ttk.Scrollbar(form_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = tk.Frame(canvas, bg='white')
+            
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # Frame principal dentro del scrollable_frame
+            main_frame = tk.Frame(scrollable_frame, bg='white')
             main_frame.pack(expand=True, fill='both', padx=30, pady=20)
+            
+            # Pack canvas y scrollbar
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Configurar scroll con mouse wheel
+            def _on_mousewheel(event):
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            
+            def _unbind_mousewheel(event):
+                canvas.unbind_all("<MouseWheel>")
+            form_window.bind("<Destroy>", _unbind_mousewheel)
             
             # Título
             title_label = tk.Label(
@@ -322,17 +349,44 @@ class ProductosView(BaseView):
             # Crear ventana de formulario
             form_window = tk.Toplevel(self.parent_frame.winfo_toplevel())
             form_window.title("Editar Producto")
-            form_window.geometry("400x700")
-            form_window.resizable(False, False)
+            form_window.geometry("450x600")
+            form_window.resizable(True, True)
             form_window.configure(bg='white')
+            form_window.minsize(400, 500)
             
             # Centrar ventana
             form_window.transient(self.parent_frame.winfo_toplevel())
             form_window.grab_set()
             
-            # Frame principal
-            main_frame = tk.Frame(form_window, bg='white')
+            # Crear canvas y scrollbar para scroll
+            canvas = tk.Canvas(form_window, bg='white')
+            scrollbar = ttk.Scrollbar(form_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = tk.Frame(canvas, bg='white')
+            
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # Frame principal dentro del scrollable_frame
+            main_frame = tk.Frame(scrollable_frame, bg='white')
             main_frame.pack(expand=True, fill='both', padx=30, pady=20)
+            
+            # Pack canvas y scrollbar
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Configurar scroll con mouse wheel
+            def _on_mousewheel(event):
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            
+            def _unbind_mousewheel(event):
+                canvas.unbind_all("<MouseWheel>")
+            form_window.bind("<Destroy>", _unbind_mousewheel)
             
             # Título
             title_label = tk.Label(

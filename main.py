@@ -320,6 +320,8 @@ class MVCApp:
                 return self.dashboard_controller._switch_view(data)
             elif action == "handle_view_action":
                 return self.dashboard_controller._handle_view_action(data)
+            elif action == "get_productos_con_stock":
+                return self.dashboard_controller.movimientos_controller.get_productos_con_stock(data.get('filtro', ''))
             else:
                 return None
         except Exception as e:

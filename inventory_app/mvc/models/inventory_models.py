@@ -233,6 +233,118 @@ class InventoryModels:
                 nota=m['nota']
             ) for m in movimientos]
     
+    def registrar_salida(self, producto_id: int, almacen_id: int, cantidad: float, usuario_id: int, nota: Optional[str] = None) -> bool:
+        """Registra una salida de producto"""
+        try:
+            # Usar el servicio de inventario para ajustar el stock (cantidad negativa = salida)
+            self.inventory_service.ajustar_stock(almacen_id, producto_id, -cantidad, usuario_id, nota)
+            return True
+        except Exception as e:
+            print(f"Error al registrar salida: {e}")
+            return False
+    
+    def registrar_salida_tienda(self, producto_id: int, cantidad: float, usuario_id: int, nota: Optional[str] = None) -> bool:
+        """Registra una salida de producto directamente en la tienda (sin almacenes)"""
+        try:
+            from ...infra.db import get_conn
+            from datetime import datetime
+            
+            with get_conn() as c:
+                # Obtener la tienda del producto
+                cur = c.execute("SELECT tienda_id FROM productos WHERE id = ?", (producto_id,))
+                producto_row = cur.fetchone()
+                if not producto_row:
+                    raise ValueError("Producto no encontrado")
+                
+                tienda_id = producto_row['tienda_id']
+                
+                # Obtener el almacén principal de la tienda (asumimos que existe)
+                cur = c.execute("SELECT id FROM almacenes WHERE tienda_id = ? LIMIT 1", (tienda_id,))
+                almacen_row = cur.fetchone()
+                if not almacen_row:
+                    # Si no existe almacén, crear uno por defecto
+                    c.execute("INSERT INTO almacenes (tienda_id, nombre) VALUES (?, ?)", 
+                             (tienda_id, f"Almacén Principal - Tienda {tienda_id}"))
+                    almacen_id = c.lastrowid
+                else:
+                    almacen_id = almacen_row['id']
+                
+                # Verificar stock disponible
+                cur = c.execute("SELECT cantidad FROM stock WHERE almacen_id = ? AND producto_id = ?", 
+                               (almacen_id, producto_id))
+                stock_row = cur.fetchone()
+                
+                if stock_row:
+                    stock_actual = stock_row['cantidad']
+                    if stock_actual < cantidad:
+                        raise ValueError(f"Stock insuficiente. Disponible: {stock_actual}, Solicitado: {cantidad}")
+                    
+                    # Actualizar stock
+                    nuevo_stock = stock_actual - cantidad
+                    c.execute("UPDATE stock SET cantidad = ? WHERE almacen_id = ? AND producto_id = ?",
+                             (nuevo_stock, almacen_id, producto_id))
+                else:
+                    raise ValueError("El producto no tiene stock registrado")
+                
+                # Registrar el movimiento
+                c.execute("""
+                    INSERT INTO movimientos (almacen_id, producto_id, tipo, cantidad, usuario_id, ts, nota)
+                    VALUES (?, ?, 'SALIDA', ?, ?, datetime('now'), ?)
+                """, (almacen_id, producto_id, cantidad, usuario_id, nota))
+                
+                return True
+                
+        except Exception as e:
+            print(f"Error al registrar salida: {e}")
+            raise e
+    
+    def get_productos_con_stock(self, filtro: str = "") -> Dict[str, Any]:
+        """Obtiene los productos con stock disponible para selección"""
+        try:
+            from ...infra.db import get_conn
+            
+            with get_conn() as c:
+                # Query base para obtener productos con stock
+                base_query = """
+                    SELECT p.id, p.sku, p.nombre, p.precio_unit, p.categoria, 
+                           t.nombre as tienda_nombre, COALESCE(s.cantidad, 0) as stock
+                    FROM productos p
+                    JOIN tiendas t ON p.tienda_id = t.id
+                    LEFT JOIN stock s ON p.id = s.producto_id
+                    WHERE p.activo = 1 AND COALESCE(s.cantidad, 0) > 0
+                """
+                
+                params = []
+                
+                # Agregar filtro si se proporciona
+                if filtro:
+                    base_query += " AND (LOWER(p.sku) LIKE ? OR LOWER(p.nombre) LIKE ? OR LOWER(p.categoria) LIKE ?)"
+                    filtro_param = f"%{filtro.lower()}%"
+                    params.extend([filtro_param, filtro_param, filtro_param])
+                
+                base_query += " ORDER BY p.sku"
+                
+                productos = c.execute(base_query, params).fetchall()
+                
+                return {
+                    'productos': [
+                        {
+                            'id': p['id'],
+                            'sku': p['sku'],
+                            'nombre': p['nombre'],
+                            'precio': p['precio_unit'],
+                            'categoria': p['categoria'],
+                            'tienda': p['tienda_nombre'],
+                            'stock': p['stock']
+                        }
+                        for p in productos
+                    ]
+                }
+                
+        except Exception as e:
+            print(f"Error obteniendo productos con stock: {e}")
+            return {'productos': []}
+    
     # Stock y Reportes
     def get_stock_report(self, tienda_id: Optional[int] = None) -> List[StockModel]:
         """Obtiene el reporte de stock"""

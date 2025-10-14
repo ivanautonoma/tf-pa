@@ -203,18 +203,45 @@ class DashboardView:
         try:
             dashboard_data = self.on_action("get_dashboard_data", {})
             tiendas = dashboard_data.get('tiendas', [])
-            store_values = [t['display'] for t in tiendas]
+            store_values = ["Todos"] + [t['display'] for t in tiendas]
             self.store_combo['values'] = store_values
-            if tiendas:
-                self.store_combo.current(0)
+            # Seleccionar "Todos" por defecto
+            self.store_combo.current(0)
         except Exception as e:
             print(f"Error al cargar tiendas: {e}")
     
     def _on_store_change(self):
         """Maneja el cambio de tienda seleccionada"""
-        # Actualizar datos de la vista actual si tiene método refresh_data
-        if self.current_view and hasattr(self.current_view, 'refresh_data'):
-            self.current_view.refresh_data()
+        try:
+            selected_store = self.store_combo.get()
+            
+            # Si estamos en la vista de movimientos, aplicar filtro
+            if hasattr(self, 'current_view') and self.current_view and self.current_view.get_view_name() == "movimientos":
+                if selected_store == "Todos":
+                    # Limpiar filtro
+                    self.on_action("handle_view_action", {
+                        "view_name": "movimientos",
+                        "action": "clear_filters",
+                        "action_data": {}
+                    })
+                else:
+                    # Aplicar filtro por tienda
+                    # Extraer ID de la tienda del formato "ID - Nombre"
+                    tienda_id = int(selected_store.split(' - ')[0])
+                    self.on_action("handle_view_action", {
+                        "view_name": "movimientos",
+                        "action": "set_tienda_filter",
+                        "action_data": {
+                            "tienda_id": tienda_id
+                        }
+                    })
+            
+            # Actualizar datos de la vista actual
+            if self.current_view and hasattr(self.current_view, 'refresh_data'):
+                self.current_view.refresh_data()
+                
+        except Exception as e:
+            print(f"Error al cambiar tienda: {e}")
     
     def refresh_current_view(self):
         """Actualiza la vista actual"""

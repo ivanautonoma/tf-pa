@@ -39,6 +39,8 @@ class MovimientosController(BaseController):
                 return self._set_tienda_filter(data)
             elif action == "clear_filters":
                 return self._clear_filters()
+            elif action == "registrar_salida":
+                return self._registrar_salida(data)
             else:
                 return False
         except Exception as e:
@@ -54,6 +56,46 @@ class MovimientosController(BaseController):
         """Limpia todos los filtros"""
         self.tienda_filtro = None
         return True
+    
+    def _registrar_salida(self, data: Dict[str, Any]) -> bool:
+        """Registra una salida de producto"""
+        if not self.validate_user_permission("OPERADOR"):
+            raise PermissionError("Solo los operadores pueden registrar salidas")
+        
+        producto_id = data.get('producto_id')
+        cantidad = data.get('cantidad')
+        nota = data.get('nota')
+        
+        if not producto_id or not cantidad:
+            raise ValueError("Producto y cantidad son requeridos")
+        
+        try:
+            cantidad_float = float(cantidad)
+            if cantidad_float <= 0:
+                raise ValueError("La cantidad debe ser mayor a 0")
+        except (ValueError, TypeError):
+            raise ValueError("Cantidad inválida")
+        
+        # Registrar la salida usando el servicio de inventario (simplificado para tiendas)
+        self.inventory_models.registrar_salida_tienda(producto_id, cantidad_float, self.current_user.id, nota)
+        return True
+    
+    def get_productos_for_selector(self) -> Dict[str, Any]:
+        """Obtiene los productos disponibles para el selector"""
+        productos = self.inventory_models.get_productos()
+        return {
+            'productos': [
+                {
+                    'id': p.id,
+                    'display': f"{p.id} - {p.sku} - {p.nombre}"
+                }
+                for p in productos
+            ]
+        }
+    
+    def get_productos_con_stock(self, filtro: str = "") -> Dict[str, Any]:
+        """Obtiene los productos con stock disponible para selección"""
+        return self.inventory_models.get_productos_con_stock(filtro)
     
     def get_available_tiendas(self) -> List[Dict[str, Any]]:
         """Obtiene las tiendas disponibles para filtro"""

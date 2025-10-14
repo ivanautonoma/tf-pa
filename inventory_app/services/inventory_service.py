@@ -38,7 +38,33 @@ class InventarioService:
     # Productos
     def crear_producto(self, sku: str, nombre: str, descripcion: Optional[str], unidad: str, precio: float, 
                       categoria: Optional[str], proveedor: Optional[str], stock_minimo: int = 0, tienda_id: int = 1) -> Producto:
-        return self._rp.crear_producto(sku, nombre, descripcion, unidad, precio, categoria, proveedor, stock_minimo, tienda_id)
+        # Crear el producto
+        producto = self._rp.crear_producto(sku, nombre, descripcion, unidad, precio, categoria, proveedor, stock_minimo, tienda_id)
+        
+        # Inicializar stock en el almacén principal de la tienda
+        self._inicializar_stock_producto(producto.id, tienda_id, stock_minimo)
+        
+        return producto
+    
+    def _inicializar_stock_producto(self, producto_id: int, tienda_id: int, stock_inicial: int = 0):
+        """Inicializa el stock de un producto en el almacén principal de la tienda"""
+        try:
+            # Obtener o crear el almacén principal de la tienda
+            almacenes = self._rt.listar_almacenes(tienda_id)
+            if not almacenes:
+                # Crear almacén principal si no existe
+                almacen = self._rt.crear_almacen(tienda_id, f"Almacén Principal - Tienda {tienda_id}")
+            else:
+                almacen = almacenes[0]  # Usar el primer almacén
+            
+            # Inicializar stock
+            self._ri.set_minimo(almacen.id, producto_id, stock_inicial)
+            if stock_inicial > 0:
+                # Si hay stock inicial, registrarlo como ingreso
+                self._ri.ajustar_stock(almacen.id, producto_id, stock_inicial, 1, "Stock inicial")
+                
+        except Exception as e:
+            print(f"Error al inicializar stock del producto {producto_id}: {e}")
 
     def listar_productos(self, q: str = "") -> List[Producto]:
         return self._rp.listar_productos(q)

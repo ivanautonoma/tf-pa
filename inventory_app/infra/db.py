@@ -26,25 +26,16 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             pw_hash TEXT NOT NULL,
-            rol TEXT NOT NULL CHECK(rol IN ('ADMIN','OPERADOR')),
+            rol TEXT NOT NULL CHECK(rol IN ('ADMIN','ENCARGADO','VENDEDOR')),
             activo INTEGER NOT NULL DEFAULT 1
         );
         """,
-        # Tiendas / Almacenes
+        # Tiendas
         """
         CREATE TABLE IF NOT EXISTS tiendas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE,
             direccion TEXT
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS almacenes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tienda_id INTEGER NOT NULL,
-            nombre TEXT NOT NULL,
-            UNIQUE(tienda_id, nombre),
-            FOREIGN KEY(tienda_id) REFERENCES tiendas(id) ON DELETE CASCADE
         );
         """,
         # Productos
@@ -67,12 +58,12 @@ def init_db():
         # Stock
         """
         CREATE TABLE IF NOT EXISTS stock (
-            almacen_id INTEGER NOT NULL,
+            tienda_id INTEGER NOT NULL,
             producto_id INTEGER NOT NULL,
             cantidad REAL NOT NULL DEFAULT 0 CHECK(cantidad >= 0),
             minimo REAL NOT NULL DEFAULT 0 CHECK(minimo >= 0),
-            PRIMARY KEY(almacen_id, producto_id),
-            FOREIGN KEY(almacen_id) REFERENCES almacenes(id) ON DELETE CASCADE,
+            PRIMARY KEY(tienda_id, producto_id),
+            FOREIGN KEY(tienda_id) REFERENCES tiendas(id) ON DELETE CASCADE,
             FOREIGN KEY(producto_id) REFERENCES productos(id) ON DELETE CASCADE
         );
         """,
@@ -94,14 +85,14 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS movimientos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            almacen_id INTEGER NOT NULL,
+            tienda_id INTEGER NOT NULL,
             producto_id INTEGER NOT NULL,
             tipo TEXT NOT NULL CHECK(tipo IN ('INGRESO','SALIDA')),
             cantidad REAL NOT NULL CHECK(cantidad > 0),
             usuario_id INTEGER NOT NULL,
             ts TEXT NOT NULL,
             nota TEXT,
-            FOREIGN KEY(almacen_id) REFERENCES almacenes(id),
+            FOREIGN KEY(tienda_id) REFERENCES tiendas(id),
             FOREIGN KEY(producto_id) REFERENCES productos(id),
             FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
         );

@@ -142,6 +142,16 @@ class BaseView(ABC):
                     values.append(str(row_data.get('stock_actual', "")))
                 elif col.lower() == "precio unit.":
                     values.append(str(row_data.get('precio_unit', "")))
+                elif col.lower() == "producto":
+                    values.append(str(row_data.get('producto', "")))
+                elif col.lower() == "stock":
+                    values.append(str(row_data.get('stock', "")))
+                elif col.lower() == "almacén":
+                    values.append(str(row_data.get('almacen', "")))
+                elif col.lower() == "mínimo":
+                    values.append(str(row_data.get('minimo', "")))
+                elif col.lower() == "estado":
+                    values.append(str(row_data.get('estado', "")))
                 else:
                     values.append(str(row_data.get(col.lower(), "")))
             self.tree.insert("", "end", values=values)

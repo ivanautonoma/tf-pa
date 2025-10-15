@@ -25,7 +25,6 @@ class MovimientosController(BaseController):
                 'cantidad': m.cantidad,
                 'usuario': m.usuario_nombre,
                 'tienda': m.tienda_nombre,
-                'almacen': m.almacen_nombre,
                 'fecha': m.fecha,
                 'nota': m.nota or ""
             }
@@ -39,6 +38,8 @@ class MovimientosController(BaseController):
                 return self._set_tienda_filter(data)
             elif action == "clear_filters":
                 return self._clear_filters()
+            elif action == "registrar_ingreso":
+                return self._registrar_ingreso(data)
             elif action == "registrar_salida":
                 return self._registrar_salida(data)
             else:
@@ -57,10 +58,34 @@ class MovimientosController(BaseController):
         self.tienda_filtro = None
         return True
     
+    def _registrar_ingreso(self, data: Dict[str, Any]) -> bool:
+        """Registra un ingreso de producto"""
+        if not self.has_any_role(["ADMIN", "ENCARGADO"]):
+            raise PermissionError("Solo administradores y encargados pueden registrar ingresos")
+        
+        producto_id = data.get('producto_id')
+        tienda_id = data.get('tienda_id')
+        cantidad = data.get('cantidad')
+        nota = data.get('nota')
+        
+        if not producto_id or not tienda_id or not cantidad:
+            raise ValueError("Producto, tienda y cantidad son requeridos")
+        
+        try:
+            cantidad_float = float(cantidad)
+            if cantidad_float <= 0:
+                raise ValueError("La cantidad debe ser mayor a 0")
+        except (ValueError, TypeError):
+            raise ValueError("Cantidad inválida")
+        
+        # Registrar el ingreso usando el servicio de inventario
+        self.inventory_models.inventory_service.ingresar(tienda_id, producto_id, cantidad_float, self.current_user.id, nota)
+        return True
+    
     def _registrar_salida(self, data: Dict[str, Any]) -> bool:
         """Registra una salida de producto"""
-        if not self.validate_user_permission("OPERADOR"):
-            raise PermissionError("Solo los operadores pueden registrar salidas")
+        if not self.has_any_role(["ADMIN", "ENCARGADO", "VENDEDOR"]):
+            raise PermissionError("No tiene permisos para registrar salidas")
         
         producto_id = data.get('producto_id')
         cantidad = data.get('cantidad')

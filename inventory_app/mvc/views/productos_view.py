@@ -13,15 +13,20 @@ class ProductosView(BaseView):
     
     def _setup_view(self):
         """Configura la vista de productos"""
-        # Botones de acción
-        btn_nuevo = self.create_button("Nuevo Producto", self._crear_producto)
-        btn_nuevo.pack(side="left", padx=5)
+        # Obtener información del usuario para mostrar botones según rol
+        user_info = self.on_action("get_user_info", {})
+        user_rol = user_info.get('rol') if user_info else None
         
-        btn_editar = self.create_button("Editar Producto", self._editar_producto, self.light_blue)
-        btn_editar.pack(side="left", padx=5)
-        
-        btn_eliminar = self.create_button("Eliminar Producto", self._eliminar_producto, self.red_color)
-        btn_eliminar.pack(side="left", padx=5)
+        # Botones de acción - Solo ADMIN puede crear, editar y eliminar productos
+        if user_rol == "ADMIN":
+            btn_nuevo = self.create_button("Nuevo Producto", self._crear_producto)
+            btn_nuevo.pack(side="left", padx=5)
+            
+            btn_editar = self.create_button("Editar Producto", self._editar_producto, self.light_blue)
+            btn_editar.pack(side="left", padx=5)
+            
+            btn_eliminar = self.create_button("Eliminar Producto", self._eliminar_producto, self.red_color)
+            btn_eliminar.pack(side="left", padx=5)
         
         # Configurar tabla
         columns = ["ID", "SKU", "Nombre", "Descripción", "Categoría", "Proveedor", "Unidad", "Precio", "Stock Mín.", "Tienda", "Estado"]

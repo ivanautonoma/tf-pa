@@ -11,16 +11,27 @@ class MovimientosView(BaseView):
     
     def _setup_view(self):
         """Configura la vista de movimientos"""
-        # Botones de acción
-        btn_registrar_salida = self.create_button("Registrar Salida", self._registrar_salida, self.red_color)
-        btn_registrar_salida.pack(side="left", padx=5)
+        # Obtener información del usuario para mostrar botones según rol
+        user_info = self.on_action("get_user_info", {})
+        user_rol = user_info.get('rol') if user_info else None
+        
+        # Botones de acción según rol
+        # Solo ADMIN y ENCARGADO pueden registrar ingresos
+        if user_rol in ["ADMIN", "ENCARGADO"]:
+            btn_registrar_ingreso = self.create_button("Registrar Ingreso", self._registrar_ingreso, "#10b981")
+            btn_registrar_ingreso.pack(side="left", padx=5)
+        
+        # ADMIN, ENCARGADO y VENDEDOR pueden registrar salidas
+        if user_rol in ["ADMIN", "ENCARGADO", "VENDEDOR"]:
+            btn_registrar_salida = self.create_button("Registrar Salida", self._registrar_salida, self.red_color)
+            btn_registrar_salida.pack(side="left", padx=5)
         
         btn_refrescar = self.create_button("Refrescar", self.refresh_data)
         btn_refrescar.pack(side="left", padx=5)
         
         # Configurar tabla
-        columns = ["ID", "Producto", "Tipo", "Cantidad", "Usuario", "Tienda", "Almacén", "Fecha", "Nota"]
-        widths = [60, 200, 80, 80, 100, 120, 120, 120, 150]
+        columns = ["ID", "Producto", "Tipo", "Cantidad", "Usuario", "Tienda", "Fecha", "Nota"]
+        widths = [60, 200, 80, 80, 100, 120, 120, 150]
         self.setup_table_columns(columns, widths)
         
         # Cargar datos iniciales
@@ -30,9 +41,17 @@ class MovimientosView(BaseView):
         """Retorna el nombre de la vista"""
         return "movimientos"
     
+    def _registrar_ingreso(self):
+        """Muestra formulario para registrar ingreso de producto"""
+        self._mostrar_formulario_ingreso()
+    
     def _registrar_salida(self):
         """Muestra formulario para registrar salida de producto"""
         self._mostrar_formulario_salida()
+    
+    def _mostrar_formulario_ingreso(self):
+        """Muestra ventana de selección de productos para registrar ingreso"""
+        self._mostrar_selector_productos_ingreso()
     
     def _mostrar_formulario_salida(self):
         """Muestra ventana de selección de productos para registrar salida"""
@@ -258,6 +277,148 @@ class MovimientosView(BaseView):
         
         # Cargar productos iniciales
         cargar_productos()
+    
+    def _mostrar_selector_productos_ingreso(self):
+        """Muestra ventana para registrar ingreso (similar a salida pero para todos los productos)"""
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Crear ventana
+        ingreso_window = tk.Toplevel(self.parent_frame.winfo_toplevel())
+        ingreso_window.title("Registrar Ingreso de Producto")
+        ingreso_window.geometry("600x400")
+        ingreso_window.resizable(False, False)
+        ingreso_window.configure(bg='white')
+        
+        # Centrar ventana
+        ingreso_window.transient(self.parent_frame.winfo_toplevel())
+        ingreso_window.grab_set()
+        
+        # Frame principal
+        main_frame = tk.Frame(ingreso_window, bg='white')
+        main_frame.pack(expand=True, fill='both', padx=30, pady=30)
+        
+        # Título
+        title_label = tk.Label(
+            main_frame,
+            text="Registrar Ingreso de Mercancía",
+            bg='white',
+            fg='#10b981',
+            font=('Arial', 16, 'bold')
+        )
+        title_label.pack(pady=(0, 20))
+        
+        # Selector de tienda
+        tienda_frame = tk.Frame(main_frame, bg='white')
+        tienda_frame.pack(fill='x', pady=10)
+        
+        tk.Label(tienda_frame, text="Tienda:", bg='white', font=('Arial', 11, 'bold')).pack(anchor='w')
+        
+        tiendas_data = self.on_action("get_tiendas_for_selector", {})
+        tiendas = tiendas_data.get('tiendas', []) if tiendas_data else []
+        tienda_options = [t['display'] for t in tiendas]
+        
+        tienda_var = tk.StringVar()
+        tienda_combo = ttk.Combobox(tienda_frame, textvariable=tienda_var, values=tienda_options, state='readonly', font=('Arial', 10))
+        tienda_combo.pack(fill='x', pady=5)
+        if tienda_options:
+            tienda_combo.current(0)
+        
+        # Selector de producto
+        producto_frame = tk.Frame(main_frame, bg='white')
+        producto_frame.pack(fill='x', pady=10)
+        
+        tk.Label(producto_frame, text="Producto:", bg='white', font=('Arial', 11, 'bold')).pack(anchor='w')
+        
+        productos_data = self.on_action("get_view_data", {"view_name": "productos"})
+        productos = productos_data.get('data', []) if productos_data else []
+        producto_options = [f"{p['sku']} - {p['nombre']}" for p in productos]
+        
+        producto_var = tk.StringVar()
+        producto_combo = ttk.Combobox(producto_frame, textvariable=producto_var, values=producto_options, state='readonly', font=('Arial', 10))
+        producto_combo.pack(fill='x', pady=5)
+        
+        # Campo cantidad
+        cantidad_frame = tk.Frame(main_frame, bg='white')
+        cantidad_frame.pack(fill='x', pady=10)
+        
+        tk.Label(cantidad_frame, text="Cantidad:", bg='white', font=('Arial', 11, 'bold')).pack(anchor='w')
+        cantidad_entry = tk.Entry(cantidad_frame, font=('Arial', 10))
+        cantidad_entry.pack(fill='x', pady=5)
+        
+        # Campo nota
+        nota_frame = tk.Frame(main_frame, bg='white')
+        nota_frame.pack(fill='x', pady=10)
+        
+        tk.Label(nota_frame, text="Nota (opcional):", bg='white', font=('Arial', 11, 'bold')).pack(anchor='w')
+        nota_entry = tk.Entry(nota_frame, font=('Arial', 10))
+        nota_entry.pack(fill='x', pady=5)
+        
+        # Botones
+        button_frame = tk.Frame(main_frame, bg='white')
+        button_frame.pack(fill='x', pady=(20, 0))
+        
+        def registrar_ingreso():
+            try:
+                if not tienda_var.get() or not producto_var.get():
+                    self.show_error("Error", "Debe seleccionar tienda y producto")
+                    return
+                
+                tienda_id = int(tienda_var.get().split(' - ')[0])
+                producto_sku = producto_var.get().split(' - ')[0]
+                producto = next((p for p in productos if p['sku'] == producto_sku), None)
+                
+                if not producto:
+                    self.show_error("Error", "Producto no encontrado")
+                    return
+                
+                cantidad = cantidad_entry.get().strip()
+                nota = nota_entry.get().strip() or None
+                
+                success = self.on_action("handle_view_action", {
+                    "view_name": "movimientos",
+                    "action": "registrar_ingreso",
+                    "action_data": {
+                        "producto_id": producto['id'],
+                        "tienda_id": tienda_id,
+                        "cantidad": cantidad,
+                        "nota": nota
+                    }
+                })
+                
+                if success:
+                    self.show_info("Éxito", "Ingreso registrado correctamente")
+                    ingreso_window.destroy()
+                    self.refresh_data()
+                    
+            except Exception as e:
+                self.show_error("Error", f"Error al registrar ingreso: {str(e)}")
+        
+        btn_registrar = tk.Button(
+            button_frame,
+            text="Registrar Ingreso",
+            command=registrar_ingreso,
+            bg='#10b981',
+            fg='white',
+            font=('Arial', 12, 'bold'),
+            padx=20,
+            pady=10,
+            cursor='hand2'
+        )
+        btn_registrar.pack(side='left', padx=5, expand=True, fill='x')
+        
+        btn_cancelar = tk.Button(
+            button_frame,
+            text="Cancelar",
+            command=ingreso_window.destroy,
+            bg='#6b7280',
+            fg='white',
+            font=('Arial', 12, 'bold'),
+            padx=20,
+            pady=10,
+            cursor='hand2'
+        )
+        btn_cancelar.pack(side='left', padx=5, expand=True, fill='x')
     
     def _mostrar_formulario_salida_producto(self, producto_data):
         """Muestra formulario de salida con producto pre-seleccionado"""

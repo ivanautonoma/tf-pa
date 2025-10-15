@@ -22,13 +22,6 @@ class Tienda:
 
 
 @dataclass
-class Almacen:
-    id: int
-    tienda_id: int
-    nombre: str
-
-
-@dataclass
 class Producto:
     id: int
     sku: str

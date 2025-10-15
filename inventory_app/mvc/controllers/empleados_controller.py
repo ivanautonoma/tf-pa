@@ -10,6 +10,10 @@ from .base_controller import BaseController
 class EmpleadosController(BaseController):
     """Controlador para la gestión de empleados"""
     
+    def __init__(self, inventory_models, user_models, current_user):
+        super().__init__(inventory_models, user_models, current_user)
+        self.tienda_filtro = None
+    
     def get_data(self) -> List[Dict[str, Any]]:
         """Obtiene todos los empleados con información completa"""
         try:
@@ -29,18 +33,20 @@ class EmpleadosController(BaseController):
                         tienda_nombre = t.nombre
                         break
                 
-                empleados_data.append({
-                    'id': empleado.id,
-                    'usuario_id': empleado.usuario_id,
-                    'username': usuario.username if usuario else "N/A",
-                    'nombres': empleado.nombres,
-                    'apellidos': empleado.apellidos,
-                    'dni': empleado.dni,
-                    'jornada': empleado.jornada,
-                    'tienda': tienda_nombre,
-                    'rol': usuario.rol if usuario else "N/A",
-                    'estado': "Activo" if usuario and usuario.activo else "Inactivo"
-                })
+                # Aplicar filtro de tienda si está activo
+                if self.tienda_filtro is None or empleado.tienda_id == self.tienda_filtro:
+                    empleados_data.append({
+                        'id': empleado.id,
+                        'usuario_id': empleado.usuario_id,
+                        'username': usuario.username if usuario else "N/A",
+                        'nombres': empleado.nombres,
+                        'apellidos': empleado.apellidos,
+                        'dni': empleado.dni,
+                        'jornada': empleado.jornada,
+                        'tienda': tienda_nombre,
+                        'rol': usuario.rol if usuario else "N/A",
+                        'estado': "Activo" if usuario and usuario.activo else "Inactivo"
+                    })
             
             return empleados_data
             
@@ -77,10 +83,25 @@ class EmpleadosController(BaseController):
                 return self._edit_empleado_completo(data)
             elif action == "delete_empleado":
                 return self._delete_empleado(data)
+            elif action == "set_tienda_filter":
+                return self._set_tienda_filter(data)
+            elif action == "clear_filters":
+                return self._clear_filters()
             else:
                 return False
         except Exception as e:
             raise Exception(f"Error en acción {action}: {str(e)}")
+    
+    def _set_tienda_filter(self, data: Dict[str, Any]) -> bool:
+        """Establece el filtro de tienda"""
+        tienda_id = data.get('tienda_id')
+        self.tienda_filtro = tienda_id
+        return True
+    
+    def _clear_filters(self) -> bool:
+        """Limpia todos los filtros"""
+        self.tienda_filtro = None
+        return True
     
     def _create_empleado(self, data: Dict[str, Any]) -> bool:
         """Crea un nuevo empleado"""

@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
 
-from ...domain.models import Tienda, Almacen, Producto
+from ...domain.models import Tienda, Producto
 from ...services.inventory_service import InventarioService
 
 
@@ -23,22 +23,6 @@ class TiendaModel:
             id=tienda.id,
             nombre=tienda.nombre,
             direccion=tienda.direccion
-        )
-
-
-@dataclass
-class AlmacenModel:
-    """Modelo de datos para almacenes"""
-    id: int
-    tienda_id: int
-    nombre: str
-    
-    @classmethod
-    def from_domain(cls, almacen: Almacen) -> 'AlmacenModel':
-        return cls(
-            id=almacen.id,
-            tienda_id=almacen.tienda_id,
-            nombre=almacen.nombre
         )
 
 
@@ -85,8 +69,6 @@ class MovimientoModel:
     cantidad: float
     usuario_id: int
     usuario_nombre: str
-    almacen_id: int
-    almacen_nombre: str
     tienda_nombre: str
     fecha: str
     nota: Optional[str]
@@ -96,7 +78,6 @@ class MovimientoModel:
 class StockModel:
     """Modelo de datos para stock"""
     tienda: str
-    almacen: str
     producto_sku: str
     producto_nombre: str
     cantidad: float
@@ -125,28 +106,8 @@ class InventoryModels:
         """Elimina una tienda"""
         from ...infra.db import get_conn
         with get_conn() as c:
-            # Verificar si hay almacenes
-            almacenes = c.execute(
-                "SELECT COUNT(*) as count FROM almacenes WHERE tienda_id=?", 
-                (tienda_id,)
-            ).fetchone()
-            
-            if almacenes['count'] > 0:
-                raise ValueError("No se puede eliminar una tienda que tiene almacenes asociados")
-            
             c.execute("DELETE FROM tiendas WHERE id=?", (tienda_id,))
             return True
-    
-    # Almacenes
-    def get_almacenes(self, tienda_id: int) -> List[AlmacenModel]:
-        """Obtiene todos los almacenes de una tienda"""
-        almacenes = self.inventory_service.listar_almacenes(tienda_id)
-        return [AlmacenModel.from_domain(a) for a in almacenes]
-    
-    def create_almacen(self, tienda_id: int, nombre: str) -> AlmacenModel:
-        """Crea un nuevo almacén"""
-        almacen = self.inventory_service.crear_almacen(tienda_id, nombre)
-        return AlmacenModel.from_domain(almacen)
     
     # Productos
     def get_productos(self) -> List[ProductoModel]:
@@ -191,12 +152,11 @@ class InventoryModels:
             if tienda_id:
                 query = """
                     SELECT m.*, p.sku, p.nombre as producto_nombre, u.username, 
-                           a.nombre as almacen_nombre, t.nombre as tienda_nombre
+                           t.nombre as tienda_nombre
                     FROM movimientos m
                     JOIN productos p ON m.producto_id = p.id
                     JOIN usuarios u ON m.usuario_id = u.id
-                    JOIN almacenes a ON m.almacen_id = a.id
-                    JOIN tiendas t ON a.tienda_id = t.id
+                    JOIN tiendas t ON m.tienda_id = t.id
                     WHERE t.id = ?
                     ORDER BY m.ts DESC
                     LIMIT ?
@@ -205,12 +165,11 @@ class InventoryModels:
             else:
                 query = """
                     SELECT m.*, p.sku, p.nombre as producto_nombre, u.username, 
-                           a.nombre as almacen_nombre, t.nombre as tienda_nombre
+                           t.nombre as tienda_nombre
                     FROM movimientos m
                     JOIN productos p ON m.producto_id = p.id
                     JOIN usuarios u ON m.usuario_id = u.id
-                    JOIN almacenes a ON m.almacen_id = a.id
-                    JOIN tiendas t ON a.tienda_id = t.id
+                    JOIN tiendas t ON m.tienda_id = t.id
                     ORDER BY m.ts DESC
                     LIMIT ?
                 """
@@ -226,28 +185,25 @@ class InventoryModels:
                 cantidad=m['cantidad'],
                 usuario_id=m['usuario_id'],
                 usuario_nombre=m['username'],
-                almacen_id=m['almacen_id'],
-                almacen_nombre=m['almacen_nombre'],
                 tienda_nombre=m['tienda_nombre'],
                 fecha=m['ts'][:16],  # Solo fecha y hora
                 nota=m['nota']
             ) for m in movimientos]
     
-    def registrar_salida(self, producto_id: int, almacen_id: int, cantidad: float, usuario_id: int, nota: Optional[str] = None) -> bool:
+    def registrar_salida(self, producto_id: int, tienda_id: int, cantidad: float, usuario_id: int, nota: Optional[str] = None) -> bool:
         """Registra una salida de producto"""
         try:
             # Usar el servicio de inventario para ajustar el stock (cantidad negativa = salida)
-            self.inventory_service.ajustar_stock(almacen_id, producto_id, -cantidad, usuario_id, nota)
+            self.inventory_service.egresar(tienda_id, producto_id, cantidad, usuario_id, nota)
             return True
         except Exception as e:
             print(f"Error al registrar salida: {e}")
             return False
     
     def registrar_salida_tienda(self, producto_id: int, cantidad: float, usuario_id: int, nota: Optional[str] = None) -> bool:
-        """Registra una salida de producto directamente en la tienda (sin almacenes)"""
+        """Registra una salida de producto directamente en la tienda"""
         try:
             from ...infra.db import get_conn
-            from datetime import datetime
             
             with get_conn() as c:
                 # Obtener la tienda del producto
@@ -258,40 +214,8 @@ class InventoryModels:
                 
                 tienda_id = producto_row['tienda_id']
                 
-                # Obtener el almacén principal de la tienda (asumimos que existe)
-                cur = c.execute("SELECT id FROM almacenes WHERE tienda_id = ? LIMIT 1", (tienda_id,))
-                almacen_row = cur.fetchone()
-                if not almacen_row:
-                    # Si no existe almacén, crear uno por defecto
-                    c.execute("INSERT INTO almacenes (tienda_id, nombre) VALUES (?, ?)", 
-                             (tienda_id, f"Almacén Principal - Tienda {tienda_id}"))
-                    almacen_id = c.lastrowid
-                else:
-                    almacen_id = almacen_row['id']
-                
-                # Verificar stock disponible
-                cur = c.execute("SELECT cantidad FROM stock WHERE almacen_id = ? AND producto_id = ?", 
-                               (almacen_id, producto_id))
-                stock_row = cur.fetchone()
-                
-                if stock_row:
-                    stock_actual = stock_row['cantidad']
-                    if stock_actual < cantidad:
-                        raise ValueError(f"Stock insuficiente. Disponible: {stock_actual}, Solicitado: {cantidad}")
-                    
-                    # Actualizar stock
-                    nuevo_stock = stock_actual - cantidad
-                    c.execute("UPDATE stock SET cantidad = ? WHERE almacen_id = ? AND producto_id = ?",
-                             (nuevo_stock, almacen_id, producto_id))
-                else:
-                    raise ValueError("El producto no tiene stock registrado")
-                
-                # Registrar el movimiento
-                c.execute("""
-                    INSERT INTO movimientos (almacen_id, producto_id, tipo, cantidad, usuario_id, ts, nota)
-                    VALUES (?, ?, 'SALIDA', ?, ?, datetime('now'), ?)
-                """, (almacen_id, producto_id, cantidad, usuario_id, nota))
-                
+                # Usar el servicio de inventario para registrar la salida
+                self.inventory_service.egresar(tienda_id, producto_id, cantidad, usuario_id, nota)
                 return True
                 
         except Exception as e:
@@ -310,7 +234,7 @@ class InventoryModels:
                            t.nombre as tienda_nombre, COALESCE(s.cantidad, 0) as stock
                     FROM productos p
                     JOIN tiendas t ON p.tienda_id = t.id
-                    LEFT JOIN stock s ON p.id = s.producto_id
+                    LEFT JOIN stock s ON p.id = s.producto_id AND s.tienda_id = t.id
                     WHERE p.activo = 1 AND COALESCE(s.cantidad, 0) > 0
                 """
                 
@@ -352,38 +276,35 @@ class InventoryModels:
         with get_conn() as c:
             if tienda_id:
                 query = """
-                    SELECT t.nombre as tienda, a.nombre as almacen, p.sku, p.nombre as producto,
+                    SELECT t.nombre as tienda, p.sku, p.nombre as producto,
                            IFNULL(s.cantidad,0) as cantidad, IFNULL(s.minimo,0) as minimo,
                            CASE WHEN IFNULL(s.cantidad,0) = 0 THEN 'SIN STOCK'
                                 WHEN IFNULL(s.cantidad,0) <= IFNULL(s.minimo,0) THEN 'BAJO MINIMO'
                                 ELSE 'OK' END AS estado
                     FROM tiendas t
-                    JOIN almacenes a ON t.id = a.tienda_id
                     CROSS JOIN productos p
-                    LEFT JOIN stock s ON s.producto_id = p.id AND s.almacen_id = a.id
+                    LEFT JOIN stock s ON s.producto_id = p.id AND s.tienda_id = t.id
                     WHERE t.id = ?
-                    ORDER BY t.nombre, a.nombre, p.nombre
+                    ORDER BY t.nombre, p.nombre
                 """
                 params = (tienda_id,)
             else:
                 query = """
-                    SELECT t.nombre as tienda, a.nombre as almacen, p.sku, p.nombre as producto,
+                    SELECT t.nombre as tienda, p.sku, p.nombre as producto,
                            IFNULL(s.cantidad,0) as cantidad, IFNULL(s.minimo,0) as minimo,
                            CASE WHEN IFNULL(s.cantidad,0) = 0 THEN 'SIN STOCK'
                                 WHEN IFNULL(s.cantidad,0) <= IFNULL(s.minimo,0) THEN 'BAJO MINIMO'
                                 ELSE 'OK' END AS estado
                     FROM tiendas t
-                    JOIN almacenes a ON t.id = a.tienda_id
                     CROSS JOIN productos p
-                    LEFT JOIN stock s ON s.producto_id = p.id AND s.almacen_id = a.id
-                    ORDER BY t.nombre, a.nombre, p.nombre
+                    LEFT JOIN stock s ON s.producto_id = p.id AND s.tienda_id = t.id
+                    ORDER BY t.nombre, p.nombre
                 """
                 params = ()
             
             reporte = c.execute(query, params).fetchall()
             return [StockModel(
                 tienda=r['tienda'],
-                almacen=r['almacen'],
                 producto_sku=r['sku'],
                 producto_nombre=r['producto'],
                 cantidad=r['cantidad'],
@@ -396,22 +317,20 @@ class InventoryModels:
         from ...infra.db import get_conn
         with get_conn() as c:
             alertas = c.execute("""
-                SELECT t.nombre as tienda, a.nombre as almacen, p.sku, p.nombre as producto,
+                SELECT t.nombre as tienda, p.sku, p.nombre as producto,
                        IFNULL(s.cantidad,0) as cantidad, IFNULL(s.minimo,0) as minimo,
                        CASE WHEN IFNULL(s.cantidad,0) = 0 THEN 'SIN STOCK'
                             WHEN IFNULL(s.cantidad,0) <= IFNULL(s.minimo,0) THEN 'BAJO MINIMO'
                             ELSE 'OK' END AS estado
                 FROM tiendas t
-                JOIN almacenes a ON t.id = a.tienda_id
                 CROSS JOIN productos p
-                LEFT JOIN stock s ON s.producto_id = p.id AND s.almacen_id = a.id
+                LEFT JOIN stock s ON s.producto_id = p.id AND s.tienda_id = t.id
                 WHERE IFNULL(s.cantidad,0) = 0 OR IFNULL(s.cantidad,0) <= IFNULL(s.minimo,0)
-                ORDER BY t.nombre, a.nombre, p.nombre
+                ORDER BY t.nombre, p.nombre
             """).fetchall()
             
             return [StockModel(
                 tienda=a['tienda'],
-                almacen=a['almacen'],
                 producto_sku=a['sku'],
                 producto_nombre=a['producto'],
                 cantidad=a['cantidad'],

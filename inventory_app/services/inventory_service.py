@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 import sqlite3
 
-from ..domain.models import Usuario, Tienda, Almacen, Producto, Empleado
+from ..domain.models import Usuario, Tienda, Producto, Empleado
 from ..domain.interfaces import RepoUsuarios, RepoTiendas, RepoProductos, RepoInventario, RepoEmpleados, Reporte
 from .reports import ReporteTablaTexto
 
@@ -29,11 +29,6 @@ class InventarioService:
     def listar_tiendas(self) -> List[Tienda]:
         return self._rt.listar_tiendas()
 
-    def crear_almacen(self, tienda_id: int, nombre: str) -> Almacen:
-        return self._rt.crear_almacen(tienda_id, nombre)
-
-    def listar_almacenes(self, tienda_id: int) -> List[Almacen]:
-        return self._rt.listar_almacenes(tienda_id)
 
     # Productos
     def crear_producto(self, sku: str, nombre: str, descripcion: Optional[str], unidad: str, precio: float, 
@@ -41,27 +36,19 @@ class InventarioService:
         # Crear el producto
         producto = self._rp.crear_producto(sku, nombre, descripcion, unidad, precio, categoria, proveedor, stock_minimo, tienda_id)
         
-        # Inicializar stock en el almacén principal de la tienda
+        # Inicializar stock en la tienda
         self._inicializar_stock_producto(producto.id, tienda_id, stock_minimo)
         
         return producto
     
     def _inicializar_stock_producto(self, producto_id: int, tienda_id: int, stock_inicial: int = 0):
-        """Inicializa el stock de un producto en el almacén principal de la tienda"""
+        """Inicializa el stock de un producto en la tienda"""
         try:
-            # Obtener o crear el almacén principal de la tienda
-            almacenes = self._rt.listar_almacenes(tienda_id)
-            if not almacenes:
-                # Crear almacén principal si no existe
-                almacen = self._rt.crear_almacen(tienda_id, f"Almacén Principal - Tienda {tienda_id}")
-            else:
-                almacen = almacenes[0]  # Usar el primer almacén
-            
-            # Inicializar stock
-            self._ri.set_minimo(almacen.id, producto_id, stock_inicial)
+            # Inicializar stock directamente en la tienda
+            self._ri.set_minimo(tienda_id, producto_id, stock_inicial)
             if stock_inicial > 0:
                 # Si hay stock inicial, registrarlo como ingreso
-                self._ri.ajustar_stock(almacen.id, producto_id, stock_inicial, 1, "Stock inicial")
+                self._ri.ajustar_stock(tienda_id, producto_id, stock_inicial, 1, "Stock inicial")
                 
         except Exception as e:
             print(f"Error al inicializar stock del producto {producto_id}: {e}")
@@ -78,22 +65,22 @@ class InventarioService:
         return self._rp.eliminar_producto(producto_id)
 
     # Stock & movimientos
-    def set_minimo(self, almacen_id: int, producto_id: int, minimo: float) -> None:
-        self._ri.set_minimo(almacen_id, producto_id, minimo)
+    def set_minimo(self, tienda_id: int, producto_id: int, minimo: float) -> None:
+        self._ri.set_minimo(tienda_id, producto_id, minimo)
 
-    def ingresar(self, almacen_id: int, producto_id: int, cantidad: float, usuario_id: int, nota: str | None = None) -> None:
-        self._ri.ajustar_stock(almacen_id, producto_id, abs(cantidad), usuario_id, nota)
+    def ingresar(self, tienda_id: int, producto_id: int, cantidad: float, usuario_id: int, nota: str | None = None) -> None:
+        self._ri.ajustar_stock(tienda_id, producto_id, abs(cantidad), usuario_id, nota)
 
-    def egresar(self, almacen_id: int, producto_id: int, cantidad: float, usuario_id: int, nota: str | None = None) -> None:
-        self._ri.ajustar_stock(almacen_id, producto_id, -abs(cantidad), usuario_id, nota)
+    def egresar(self, tienda_id: int, producto_id: int, cantidad: float, usuario_id: int, nota: str | None = None) -> None:
+        self._ri.ajustar_stock(tienda_id, producto_id, -abs(cantidad), usuario_id, nota)
 
-    def reporte_stock(self, almacen_id: int, renderer: Reporte | None = None) -> str:
-        filas = self._ri.reporte_stock(almacen_id)
+    def reporte_stock(self, tienda_id: int, renderer: Reporte | None = None) -> str:
+        filas = self._ri.reporte_stock(tienda_id)
         renderer = renderer or ReporteTablaTexto()
         return renderer.render(filas)
 
-    def items_bajo_minimo(self, almacen_id: int):
-        filas = self._ri.reporte_stock(almacen_id)
+    def items_bajo_minimo(self, tienda_id: int):
+        filas = self._ri.reporte_stock(tienda_id)
         return [r for r in filas if r["estado"] in ("SIN STOCK", "BAJO MINIMO")]
 
     # Empleados

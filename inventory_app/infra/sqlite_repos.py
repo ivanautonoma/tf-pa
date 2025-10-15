@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 import sqlite3
 
-from ..domain.models import Usuario, Tienda, Almacen, Producto, Empleado
+from ..domain.models import Usuario, Tienda, Producto, Empleado
 from ..domain.interfaces import RepoUsuarios, RepoTiendas, RepoProductos, RepoInventario, RepoEmpleados
 from .db import get_conn, _hash_pw
 
@@ -77,15 +77,6 @@ class SQLiteRepoTiendas(RepoTiendas):
             cur = c.execute("SELECT * FROM tiendas ORDER BY nombre")
             return [Tienda(id=r["id"], nombre=r["nombre"], direccion=r["direccion"]) for r in cur.fetchall()]
 
-    def crear_almacen(self, tienda_id: int, nombre: str) -> Almacen:
-        with get_conn() as c:
-            cur = c.execute("INSERT INTO almacenes(tienda_id, nombre) VALUES (?,?)", (tienda_id, nombre))
-            return Almacen(id=cur.lastrowid, tienda_id=tienda_id, nombre=nombre)
-
-    def listar_almacenes(self, tienda_id: int) -> List[Almacen]:
-        with get_conn() as c:
-            cur = c.execute("SELECT * FROM almacenes WHERE tienda_id=? ORDER BY nombre", (tienda_id,))
-            return [Almacen(id=r["id"], tienda_id=r["tienda_id"], nombre=r["nombre"]) for r in cur.fetchall()]
 
 
 class SQLiteRepoProductos(RepoProductos):
@@ -171,52 +162,52 @@ class SQLiteRepoProductos(RepoProductos):
 
 
 class SQLiteRepoInventario(RepoInventario):
-    def set_minimo(self, almacen_id: int, producto_id: int, minimo: float) -> None:
+    def set_minimo(self, tienda_id: int, producto_id: int, minimo: float) -> None:
         with get_conn() as c:
             c.execute(
-                "INSERT INTO stock(almacen_id, producto_id, minimo, cantidad) VALUES (?,?,?,0) "
-                "ON CONFLICT(almacen_id, producto_id) DO UPDATE SET minimo=excluded.minimo",
-                (almacen_id, producto_id, minimo),
+                "INSERT INTO stock(tienda_id, producto_id, minimo, cantidad) VALUES (?,?,?,0) "
+                "ON CONFLICT(tienda_id, producto_id) DO UPDATE SET minimo=excluded.minimo",
+                (tienda_id, producto_id, minimo),
             )
 
-    def ajustar_stock(self, almacen_id: int, producto_id: int, delta: float, usuario_id: int, nota: Optional[str] = None) -> None:
+    def ajustar_stock(self, tienda_id: int, producto_id: int, delta: float, usuario_id: int, nota: Optional[str] = None) -> None:
         with get_conn() as c:
-            cur = c.execute("SELECT cantidad FROM stock WHERE almacen_id=? AND producto_id=?", (almacen_id, producto_id))
+            cur = c.execute("SELECT cantidad FROM stock WHERE tienda_id=? AND producto_id=?", (tienda_id, producto_id))
             row = cur.fetchone()
             if row is None:
                 if delta < 0:
                     raise ValueError("No se puede egresar stock inexistente")
-                c.execute("INSERT INTO stock(almacen_id, producto_id, cantidad, minimo) VALUES (?,?,?,0)", (almacen_id, producto_id, delta))
+                c.execute("INSERT INTO stock(tienda_id, producto_id, cantidad, minimo) VALUES (?,?,?,0)", (tienda_id, producto_id, delta))
             else:
                 nueva = row["cantidad"] + delta
                 if nueva < 0:
                     raise ValueError("Stock insuficiente para la operación")
-                c.execute("UPDATE stock SET cantidad=? WHERE almacen_id=? AND producto_id=?", (nueva, almacen_id, producto_id))
+                c.execute("UPDATE stock SET cantidad=? WHERE tienda_id=? AND producto_id=?", (nueva, tienda_id, producto_id))
             c.execute(
-                "INSERT INTO movimientos(almacen_id, producto_id, tipo, cantidad, usuario_id, ts, nota) VALUES (?,?,?,?,?,?,datetime('now'))",
-                (almacen_id, producto_id, "INGRESO" if delta > 0 else "SALIDA", abs(delta), usuario_id, nota),
+                "INSERT INTO movimientos(tienda_id, producto_id, tipo, cantidad, usuario_id, ts, nota) VALUES (?,?,?,?,?,?,datetime('now'))",
+                (tienda_id, producto_id, "INGRESO" if delta > 0 else "SALIDA", abs(delta), usuario_id, nota),
             )
 
-    def obtener_stock(self, almacen_id: int, producto_id: int) -> Tuple[float, float]:
+    def obtener_stock(self, tienda_id: int, producto_id: int) -> Tuple[float, float]:
         with get_conn() as c:
-            cur = c.execute("SELECT cantidad, minimo FROM stock WHERE almacen_id=? AND producto_id=?", (almacen_id, producto_id))
+            cur = c.execute("SELECT cantidad, minimo FROM stock WHERE tienda_id=? AND producto_id=?", (tienda_id, producto_id))
             r = cur.fetchone()
             if not r:
                 return 0.0, 0.0
             return float(r["cantidad"]), float(r["minimo"])
 
-    def reporte_stock(self, almacen_id: int):
+    def reporte_stock(self, tienda_id: int):
         sql = """
         SELECT p.sku, p.nombre, p.unidad, IFNULL(s.cantidad,0) AS cantidad, IFNULL(s.minimo,0) AS minimo,
                CASE WHEN IFNULL(s.cantidad,0) = 0 THEN 'SIN STOCK'
                     WHEN IFNULL(s.cantidad,0) <= IFNULL(s.minimo,0) THEN 'BAJO MINIMO'
                     ELSE 'OK' END AS estado
         FROM productos p
-        LEFT JOIN stock s ON s.producto_id = p.id AND s.almacen_id = ?
+        LEFT JOIN stock s ON s.producto_id = p.id AND s.tienda_id = ?
         ORDER BY p.nombre
         """
         with get_conn() as c:
-            return list(c.execute(sql, (almacen_id,)))
+            return list(c.execute(sql, (tienda_id,)))
 
 
 class SQLiteRepoEmpleados(RepoEmpleados):

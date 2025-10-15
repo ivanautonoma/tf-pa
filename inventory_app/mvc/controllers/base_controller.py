@@ -35,6 +35,10 @@ class BaseController(ABC):
         """Valida si el usuario tiene el rol requerido"""
         return self.current_user.rol == required_role
     
+    def has_any_role(self, roles: List[str]) -> bool:
+        """Valida si el usuario tiene alguno de los roles especificados"""
+        return self.current_user.rol in roles
+    
     def get_user_info(self) -> Dict[str, Any]:
         """Obtiene información del usuario actual"""
         return {

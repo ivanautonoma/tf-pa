@@ -236,6 +236,69 @@ class DashboardView:
                         }
                     })
             
+            # Si estamos en la vista de reportes, aplicar filtro
+            elif hasattr(self, 'current_view') and self.current_view and self.current_view.get_view_name() == "reportes":
+                if selected_store == "Todos":
+                    # Limpiar filtro de tienda (mantener filtro de estado)
+                    self.on_action("handle_view_action", {
+                        "view_name": "reportes",
+                        "action": "clear_tienda_filter",
+                        "action_data": {}
+                    })
+                else:
+                    # Aplicar filtro por tienda
+                    # Extraer ID de la tienda del formato "ID - Nombre"
+                    tienda_id = int(selected_store.split(' - ')[0])
+                    self.on_action("handle_view_action", {
+                        "view_name": "reportes",
+                        "action": "set_tienda_filter",
+                        "action_data": {
+                            "tienda_id": tienda_id
+                        }
+                    })
+            
+            # Si estamos en la vista de empleados, aplicar filtro
+            elif hasattr(self, 'current_view') and self.current_view and self.current_view.get_view_name() == "empleados":
+                if selected_store == "Todos":
+                    # Limpiar filtro
+                    self.on_action("handle_view_action", {
+                        "view_name": "empleados",
+                        "action": "clear_filters",
+                        "action_data": {}
+                    })
+                else:
+                    # Aplicar filtro por tienda
+                    # Extraer ID de la tienda del formato "ID - Nombre"
+                    tienda_id = int(selected_store.split(' - ')[0])
+                    self.on_action("handle_view_action", {
+                        "view_name": "empleados",
+                        "action": "set_tienda_filter",
+                        "action_data": {
+                            "tienda_id": tienda_id
+                        }
+                    })
+            
+            # Si estamos en la vista de productos, aplicar filtro
+            elif hasattr(self, 'current_view') and self.current_view and self.current_view.get_view_name() == "productos":
+                if selected_store == "Todos":
+                    # Limpiar filtro
+                    self.on_action("handle_view_action", {
+                        "view_name": "productos",
+                        "action": "clear_filters",
+                        "action_data": {}
+                    })
+                else:
+                    # Aplicar filtro por tienda
+                    # Extraer ID de la tienda del formato "ID - Nombre"
+                    tienda_id = int(selected_store.split(' - ')[0])
+                    self.on_action("handle_view_action", {
+                        "view_name": "productos",
+                        "action": "set_tienda_filter",
+                        "action_data": {
+                            "tienda_id": tienda_id
+                        }
+                    })
+            
             # Actualizar datos de la vista actual
             if self.current_view and hasattr(self.current_view, 'refresh_data'):
                 self.current_view.refresh_data()

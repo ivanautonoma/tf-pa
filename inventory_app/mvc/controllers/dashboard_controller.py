@@ -56,7 +56,9 @@ class DashboardController(BaseController):
         """Obtiene las vistas permitidas según el rol del usuario"""
         if self.current_user.rol == "ADMIN":
             return ["tiendas", "empleados", "productos", "movimientos", "reportes"]
-        elif self.current_user.rol == "OPERADOR":
+        elif self.current_user.rol == "ENCARGADO":
+            return ["productos", "movimientos", "reportes"]
+        elif self.current_user.rol == "VENDEDOR":
             return ["productos", "movimientos", "reportes"]
         else:
             return []

@@ -6,7 +6,7 @@ from typing import List, Optional, Iterable, Protocol, Tuple
 from abc import ABC, abstractmethod
 import sqlite3
 
-from .models import Usuario, Tienda, Almacen, Producto, Empleado
+from .models import Usuario, Tienda, Producto, Empleado
 
 
 class RepoUsuarios(ABC):
@@ -47,12 +47,6 @@ class RepoTiendas(ABC):
     @abstractmethod
     def listar_tiendas(self) -> List[Tienda]: ...
 
-    @abstractmethod
-    def crear_almacen(self, tienda_id: int, nombre: str) -> Almacen: ...
-
-    @abstractmethod
-    def listar_almacenes(self, tienda_id: int) -> List[Almacen]: ...
-
 
 class RepoProductos(ABC):
     @abstractmethod
@@ -76,16 +70,16 @@ class RepoProductos(ABC):
 
 class RepoInventario(ABC):
     @abstractmethod
-    def set_minimo(self, almacen_id: int, producto_id: int, minimo: float) -> None: ...
+    def set_minimo(self, tienda_id: int, producto_id: int, minimo: float) -> None: ...
 
     @abstractmethod
-    def ajustar_stock(self, almacen_id: int, producto_id: int, delta: float, usuario_id: int, nota: Optional[str] = None) -> None: ...
+    def ajustar_stock(self, tienda_id: int, producto_id: int, delta: float, usuario_id: int, nota: Optional[str] = None) -> None: ...
 
     @abstractmethod
-    def obtener_stock(self, almacen_id: int, producto_id: int) -> Tuple[float, float]: ...
+    def obtener_stock(self, tienda_id: int, producto_id: int) -> Tuple[float, float]: ...
 
     @abstractmethod
-    def reporte_stock(self, almacen_id: int) -> List[sqlite3.Row]: ...
+    def reporte_stock(self, tienda_id: int) -> List[sqlite3.Row]: ...
 
 
 class Reporte(Protocol):

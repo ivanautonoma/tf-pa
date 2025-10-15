@@ -10,9 +10,18 @@ from .base_controller import BaseController
 class ProductosController(BaseController):
     """Controlador para la gestión de productos"""
     
+    def __init__(self, inventory_models, user_models, current_user):
+        super().__init__(inventory_models, user_models, current_user)
+        self.tienda_filtro = None
+    
     def get_data(self) -> List[Dict[str, Any]]:
         """Obtiene todos los productos con información completa"""
         productos = self.inventory_models.get_productos()
+        
+        # Aplicar filtro de tienda si está activo
+        if self.tienda_filtro is not None:
+            productos = [p for p in productos if p.tienda_id == self.tienda_filtro]
+        
         return [
             {
                 'id': p.id,
@@ -51,10 +60,25 @@ class ProductosController(BaseController):
                 return self._edit_producto(data)
             elif action == "delete_producto":
                 return self._delete_producto(data)
+            elif action == "set_tienda_filter":
+                return self._set_tienda_filter(data)
+            elif action == "clear_filters":
+                return self._clear_filters()
             else:
                 return False
         except Exception as e:
             raise Exception(f"Error en acción {action}: {str(e)}")
+    
+    def _set_tienda_filter(self, data: Dict[str, Any]) -> bool:
+        """Establece el filtro de tienda"""
+        tienda_id = data.get('tienda_id')
+        self.tienda_filtro = tienda_id
+        return True
+    
+    def _clear_filters(self) -> bool:
+        """Limpia todos los filtros"""
+        self.tienda_filtro = None
+        return True
     
     def _create_producto(self, data: Dict[str, Any]) -> bool:
         """Crea un nuevo producto"""

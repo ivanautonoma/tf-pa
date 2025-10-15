@@ -68,17 +68,12 @@ class MVCApp:
             t2 = self.inventory_service.crear_tienda("Tienda Norte", "Av. Norte 456")
             t3 = self.inventory_service.crear_tienda("Tienda Sur", "Av. Sur 789")
             
-            # Crear almacenes
-            a1 = self.inventory_service.crear_almacen(t1.id, "Almacén Principal")
-            a2 = self.inventory_service.crear_almacen(t2.id, "Almacén Norte")
-            a3 = self.inventory_service.crear_almacen(t3.id, "Almacén Sur")
-            
             # Crear productos
-            self.inventory_service.crear_producto("ARROZ01", "Arroz Costeño 1kg", "Arroz blanco de alta calidad", "un", 4.50, "Granos", "Costeño", 5, 1)
-            self.inventory_service.crear_producto("AZUCAR1", "Azúcar Rubia 1kg", "Azúcar de caña natural", "un", 3.80, "Endulzantes", "Laredo", 3, 1)
-            self.inventory_service.crear_producto("LECHE01", "Leche Gloria Lata", "Leche evaporada", "un", 4.20, "Lácteos", "Gloria", 2, 2)
-            self.inventory_service.crear_producto("ACEITE1", "Aceite Primor 900ml", "Aceite vegetal para cocinar", "un", 8.50, "Aceites", "Primor", 3, 2)
-            self.inventory_service.crear_producto("ATUN01", "Atún Primor 170g", "Atún en aceite", "un", 3.20, "Conservas", "Primor", 4, 1)
+            self.inventory_service.crear_producto("ARROZ01", "Arroz Costeño 1kg", "Arroz blanco de alta calidad", "un", 4.50, "Granos", "Costeño", 5, t1.id)
+            self.inventory_service.crear_producto("AZUCAR1", "Azúcar Rubia 1kg", "Azúcar de caña natural", "un", 3.80, "Endulzantes", "Laredo", 3, t1.id)
+            self.inventory_service.crear_producto("LECHE01", "Leche Gloria Lata", "Leche evaporada", "un", 4.20, "Lácteos", "Gloria", 2, t2.id)
+            self.inventory_service.crear_producto("ACEITE1", "Aceite Primor 900ml", "Aceite vegetal para cocinar", "un", 8.50, "Aceites", "Primor", 3, t2.id)
+            self.inventory_service.crear_producto("ATUN01", "Atún Primor 170g", "Atún en aceite", "un", 3.20, "Conservas", "Primor", 4, t3.id)
             
             # Crear usuarios de demo
             from inventory_app.infra.db import get_conn, _hash_pw
@@ -94,16 +89,13 @@ class MVCApp:
                 )
             
             u = SQLiteRepoUsuarios().autenticar("admin", "admin")
-            # Ingresos iniciales + mínimos
+            # Ingresos iniciales + mínimos directamente por tienda
             for sku, cant, minv in [("ARROZ01", 30, 5), ("AZUCAR1", 10, 5), ("LECHE01", 0, 2), ("ACEITE1", 15, 3), ("ATUN01", 20, 4)]:
                 p = SQLiteRepoProductos().buscar_por_sku(sku)
                 if cant != 0:
-                    SQLiteRepoInventario().ajustar_stock(a1.id, p.id, cant, u.id, nota="Carga inicial")
-                    SQLiteRepoInventario().ajustar_stock(a2.id, p.id, cant//2, u.id, nota="Carga inicial")
-                    SQLiteRepoInventario().ajustar_stock(a3.id, p.id, cant//3, u.id, nota="Carga inicial")
-                SQLiteRepoInventario().set_minimo(a1.id, p.id, minv)
-                SQLiteRepoInventario().set_minimo(a2.id, p.id, minv)
-                SQLiteRepoInventario().set_minimo(a3.id, p.id, minv)
+                    # Ingresar stock directamente en la tienda del producto
+                    SQLiteRepoInventario().ajustar_stock(p.tienda_id, p.id, cant, u.id, nota="Carga inicial")
+                SQLiteRepoInventario().set_minimo(p.tienda_id, p.id, minv)
     
     def _build_login(self):
         """Construye la interfaz de login con estilo moderno"""

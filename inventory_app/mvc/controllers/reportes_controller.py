@@ -13,20 +13,33 @@ class ReportesController(BaseController):
     def __init__(self, inventory_models, user_models, current_user):
         super().__init__(inventory_models, user_models, current_user)
         self.tienda_filtro = None
+        self.status_filtro = "todos"
     
     def get_data(self) -> List[Dict[str, Any]]:
         """Obtiene el reporte de stock"""
         stock_report = self.inventory_models.get_stock_report(self.tienda_filtro)
+        
+        # Filtrar por estado si es necesario
+        filtered_report = []
+        for s in stock_report:
+            if self.status_filtro == "todos":
+                filtered_report.append(s)
+            elif self.status_filtro == "ok" and s.estado == "OK":
+                filtered_report.append(s)
+            elif self.status_filtro == "bajo_stock" and s.estado == "BAJO MINIMO":
+                filtered_report.append(s)
+            elif self.status_filtro == "sin_stock" and s.estado == "SIN STOCK":
+                filtered_report.append(s)
+        
         return [
             {
+                'id': s.producto_sku,  # Usar SKU como ID
+                'producto': s.producto_nombre,
                 'tienda': s.tienda,
-                'almacen': s.almacen,
-                'producto': f"{s.producto_sku} - {s.producto_nombre}",
-                'stock': s.cantidad,
-                'minimo': s.minimo,
-                'estado': s.estado
+                'estado': s.estado,
+                'stock': s.cantidad
             }
-            for s in stock_report
+            for s in filtered_report
         ]
     
     def handle_action(self, action: str, data: Dict[str, Any]) -> bool:
@@ -34,6 +47,10 @@ class ReportesController(BaseController):
         try:
             if action == "set_tienda_filter":
                 return self._set_tienda_filter(data)
+            elif action == "set_status_filter":
+                return self._set_status_filter(data)
+            elif action == "clear_tienda_filter":
+                return self._clear_tienda_filter()
             elif action == "clear_filters":
                 return self._clear_filters()
             elif action == "export_csv":
@@ -49,9 +66,23 @@ class ReportesController(BaseController):
         self.tienda_filtro = tienda_id
         return True
     
+    def _set_status_filter(self, data: Dict[str, Any]) -> bool:
+        """Establece el filtro de estado"""
+        status_filter = data.get('status_filter')
+        if status_filter in ["todos", "ok", "bajo_stock", "sin_stock"]:
+            self.status_filtro = status_filter
+            return True
+        return False
+    
+    def _clear_tienda_filter(self) -> bool:
+        """Limpia solo el filtro de tienda (mantiene el filtro de estado)"""
+        self.tienda_filtro = None
+        return True
+    
     def _clear_filters(self) -> bool:
         """Limpia todos los filtros"""
         self.tienda_filtro = None
+        self.status_filtro = "todos"
         return True
     
     def _export_csv(self, data: Dict[str, Any]) -> bool:

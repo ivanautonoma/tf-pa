@@ -1,9 +1,10 @@
-# Entornos virtuales
-venv/
-env/
-.venv/
+# Base de datos SQLite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Archivos de Python
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -25,19 +26,28 @@ wheels/
 .installed.cfg
 *.egg
 
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 
-# Archivos temporales
-*.tmp
-*.temp
-
-# Base de datos (si usas SQLite)
-*.db
-*.sqlite3
+# Temporal
+temp/
+tmp/

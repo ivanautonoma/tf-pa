@@ -60,42 +60,79 @@ class MVCApp:
         self._bootstrap_demo_data()
     
     def _bootstrap_demo_data(self):
-        """Carga datos de demostración"""
+        """Carga datos de demostración con nuevo sistema de roles"""
         # Crear demo si no hay tiendas
         if not self.inventory_service.listar_tiendas():
-            # Crear tiendas de demo
-            t1 = self.inventory_service.crear_tienda("Tienda Centro", "Av. Principal 123")
-            t2 = self.inventory_service.crear_tienda("Tienda Norte", "Av. Norte 456")
-            t3 = self.inventory_service.crear_tienda("Tienda Sur", "Av. Sur 789")
-            
-            # Crear productos
-            self.inventory_service.crear_producto("ARROZ01", "Arroz Costeño 1kg", "Arroz blanco de alta calidad", "un", 4.50, "Granos", "Costeño", 5, t1.id)
-            self.inventory_service.crear_producto("AZUCAR1", "Azúcar Rubia 1kg", "Azúcar de caña natural", "un", 3.80, "Endulzantes", "Laredo", 3, t1.id)
-            self.inventory_service.crear_producto("LECHE01", "Leche Gloria Lata", "Leche evaporada", "un", 4.20, "Lácteos", "Gloria", 2, t2.id)
-            self.inventory_service.crear_producto("ACEITE1", "Aceite Primor 900ml", "Aceite vegetal para cocinar", "un", 8.50, "Aceites", "Primor", 3, t2.id)
-            self.inventory_service.crear_producto("ATUN01", "Atún Primor 170g", "Atún en aceite", "un", 3.20, "Conservas", "Primor", 4, t3.id)
-            
-            # Crear usuarios de demo
             from inventory_app.infra.db import get_conn, _hash_pw
+            
+            # 1. Crear tiendas
+            t1 = self.inventory_service.crear_tienda("Tienda Centro", "Av. Principal 123, Lima")
+            t2 = self.inventory_service.crear_tienda("Tienda Norte", "Av. Túpac Amaru 456, Lima")
+            t3 = self.inventory_service.crear_tienda("Tienda Sur", "Av. Aviación 789, Lima")
+            
+            # 2. Crear usuarios con nuevos roles
             with get_conn() as c:
-                # Admin ya existe por defecto
+                # Encargados
                 c.execute(
                     "INSERT OR IGNORE INTO usuarios(username, pw_hash, rol, activo) VALUES (?,?,?,?)",
-                    ("operador1", _hash_pw("123"), "OPERADOR", 1)
+                    ("carlos", _hash_pw("123"), "ENCARGADO", 1)
                 )
                 c.execute(
                     "INSERT OR IGNORE INTO usuarios(username, pw_hash, rol, activo) VALUES (?,?,?,?)",
-                    ("operador2", _hash_pw("123"), "OPERADOR", 1)
+                    ("maria", _hash_pw("123"), "ENCARGADO", 1)
+                )
+                # Vendedores
+                c.execute(
+                    "INSERT OR IGNORE INTO usuarios(username, pw_hash, rol, activo) VALUES (?,?,?,?)",
+                    ("juan", _hash_pw("123"), "VENDEDOR", 1)
+                )
+                c.execute(
+                    "INSERT OR IGNORE INTO usuarios(username, pw_hash, rol, activo) VALUES (?,?,?,?)",
+                    ("ana", _hash_pw("123"), "VENDEDOR", 1)
                 )
             
-            u = SQLiteRepoUsuarios().autenticar("admin", "admin")
-            # Ingresos iniciales + mínimos directamente por tienda
-            for sku, cant, minv in [("ARROZ01", 30, 5), ("AZUCAR1", 10, 5), ("LECHE01", 0, 2), ("ACEITE1", 15, 3), ("ATUN01", 20, 4)]:
-                p = SQLiteRepoProductos().buscar_por_sku(sku)
-                if cant != 0:
-                    # Ingresar stock directamente en la tienda del producto
-                    SQLiteRepoInventario().ajustar_stock(p.tienda_id, p.id, cant, u.id, nota="Carga inicial")
-                SQLiteRepoInventario().set_minimo(p.tienda_id, p.id, minv)
+            # 3. Crear empleados
+            u_carlos = SQLiteRepoUsuarios().autenticar("carlos", "123")
+            u_maria = SQLiteRepoUsuarios().autenticar("maria", "123")
+            u_juan = SQLiteRepoUsuarios().autenticar("juan", "123")
+            u_ana = SQLiteRepoUsuarios().autenticar("ana", "123")
+            
+            self.inventory_service.crear_empleado(u_carlos.id, "Carlos", "Rodríguez", "12345678", "COMPLETA", t1.id)
+            self.inventory_service.crear_empleado(u_maria.id, "María", "González", "87654321", "COMPLETA", t2.id)
+            self.inventory_service.crear_empleado(u_juan.id, "Juan", "Pérez", "11223344", "COMPLETA", t3.id)
+            self.inventory_service.crear_empleado(u_ana.id, "Ana", "Torres", "55667788", "MEDIA", t1.id)
+            
+            # 4. Crear productos
+            # Tienda Centro
+            p1 = self.inventory_service.crear_producto("ARR001", "Arroz Costeño 1kg", "Arroz blanco de primera", "kg", 4.50, "Granos", "Costeño", 10, t1.id)
+            p2 = self.inventory_service.crear_producto("AZU001", "Azúcar Rubia 1kg", "Azúcar de caña", "kg", 3.80, "Endulzantes", "Laredo", 8, t1.id)
+            p3 = self.inventory_service.crear_producto("ACE001", "Aceite Primor 1L", "Aceite vegetal", "L", 9.50, "Aceites", "Primor", 5, t1.id)
+            # Tienda Norte
+            p4 = self.inventory_service.crear_producto("LEC001", "Leche Gloria Lata", "Leche evaporada", "lata", 4.20, "Lácteos", "Gloria", 12, t2.id)
+            p5 = self.inventory_service.crear_producto("ATU001", "Atún Florida 170g", "Atún en aceite", "lata", 3.50, "Conservas", "Florida", 15, t2.id)
+            p6 = self.inventory_service.crear_producto("FID001", "Fideos Don Vittorio 1kg", "Fideos tallarin", "kg", 3.20, "Pastas", "Don Vittorio", 10, t2.id)
+            # Tienda Sur
+            p7 = self.inventory_service.crear_producto("GAL001", "Galletas Soda 6pack", "Galletas saladas", "pack", 5.80, "Galletas", "Field", 8, t3.id)
+            p8 = self.inventory_service.crear_producto("JAB001", "Jabón Bolívar 3pack", "Jabón de tocador", "pack", 4.50, "Limpieza", "Bolívar", 6, t3.id)
+            
+            # 5. Registrar stock inicial (simulando que lo hacen los encargados)
+            self.inventory_service.ingresar(t1.id, p1.id, 50, u_carlos.id, "Recepción de mercancía")
+            self.inventory_service.ingresar(t1.id, p2.id, 30, u_carlos.id, "Recepción de mercancía")
+            self.inventory_service.ingresar(t1.id, p3.id, 25, u_carlos.id, "Recepción de mercancía")
+            
+            self.inventory_service.ingresar(t2.id, p4.id, 40, u_maria.id, "Recepción de mercancía")
+            self.inventory_service.ingresar(t2.id, p5.id, 8, u_maria.id, "Recepción de mercancía")
+            self.inventory_service.ingresar(t2.id, p6.id, 25, u_maria.id, "Recepción de mercancía")
+            
+            # Admin registra para Tienda Sur
+            u_admin = SQLiteRepoUsuarios().autenticar("admin", "admin")
+            self.inventory_service.ingresar(t3.id, p7.id, 15, u_admin.id, "Recepción de mercancía")
+            # p8 sin stock inicial (ejemplo de SIN STOCK)
+            
+            # 6. Registrar algunas ventas (simulando vendedores)
+            self.inventory_service.egresar(t1.id, p1.id, 5, u_ana.id, "Venta a cliente")
+            self.inventory_service.egresar(t1.id, p2.id, 3, u_ana.id, "Venta a cliente")
+            self.inventory_service.egresar(t3.id, p7.id, 4, u_juan.id, "Venta a cliente")
     
     def _build_login(self):
         """Construye la interfaz de login con estilo moderno"""

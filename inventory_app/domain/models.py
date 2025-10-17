@@ -19,6 +19,9 @@ class Tienda:
     id: int
     nombre: str
     direccion: Optional[str]
+    telefono: Optional[str] = None
+    email: Optional[str] = None
+    responsable_id: Optional[int] = None
 
 
 @dataclass

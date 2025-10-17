@@ -17,8 +17,8 @@ class ProductosView(BaseView):
         user_info = self.on_action("get_user_info", {})
         user_rol = user_info.get('rol') if user_info else None
         
-        # Botones de acción - Solo ADMIN puede crear, editar y eliminar productos
-        if user_rol == "ADMIN":
+        # Botones de acción - ADMIN y ENCARGADO pueden gestionar productos
+        if user_rol in ["ADMIN", "ENCARGADO"]:
             btn_nuevo = self.create_button("Nuevo Producto", self._crear_producto)
             btn_nuevo.pack(side="left", padx=5)
             

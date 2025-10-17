@@ -143,7 +143,7 @@ class EmpleadosView(BaseView):
             # Variables para los campos
             username_var = tk.StringVar()
             password_var = tk.StringVar()
-            rol_var = tk.StringVar(value="OPERADOR")
+            rol_var = tk.StringVar(value="VENDEDOR")  # ✅ Valor por defecto actualizado
             nombres_var = tk.StringVar()
             apellidos_var = tk.StringVar()
             dni_var = tk.StringVar()
@@ -163,7 +163,7 @@ class EmpleadosView(BaseView):
             campos = [
                 ("Usuario", username_var, "entry"),
                 ("Contraseña", password_var, "password"),
-                ("Rol", rol_var, "combo", ["ADMIN", "OPERADOR"]),
+                ("Rol", rol_var, "combo", ["ADMIN", "ENCARGADO", "VENDEDOR"]),  # ✅ CORREGIDO
                 ("Nombres", nombres_var, "entry"),
                 ("Apellidos", apellidos_var, "entry"),
                 ("DNI", dni_var, "entry"),
@@ -391,7 +391,7 @@ class EmpleadosView(BaseView):
             # Variables para los campos con datos existentes
             username_var = tk.StringVar(value=empleado_data.get('username', ''))
             password_var = tk.StringVar()  # Vacío para nueva contraseña
-            rol_var = tk.StringVar(value=empleado_data.get('rol', 'OPERADOR'))
+            rol_var = tk.StringVar(value=empleado_data.get('rol', 'VENDEDOR'))  # ✅ Valor por defecto actualizado
             nombres_var = tk.StringVar(value=empleado_data.get('nombres', ''))
             apellidos_var = tk.StringVar(value=empleado_data.get('apellidos', ''))
             dni_var = tk.StringVar(value=empleado_data.get('dni', ''))
@@ -422,7 +422,7 @@ class EmpleadosView(BaseView):
             campos = [
                 ("Usuario", username_var, "entry"),
                 ("Nueva Contraseña (opcional)", password_var, "password"),
-                ("Rol", rol_var, "combo", ["ADMIN", "OPERADOR"]),
+                ("Rol", rol_var, "combo", ["ADMIN", "ENCARGADO", "VENDEDOR"]),  # ✅ CORREGIDO
                 ("Nombres", nombres_var, "entry"),
                 ("Apellidos", apellidos_var, "entry"),
                 ("DNI", dni_var, "entry"),

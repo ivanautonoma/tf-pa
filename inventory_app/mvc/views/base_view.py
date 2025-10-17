@@ -108,8 +108,14 @@ class BaseView(ABC):
                     values.append(str(row_data.get('username', "")))
                 elif col.lower() == "nombre":
                     values.append(str(row_data.get('nombre', "")))
-                elif col.lower() == "direccion":
+                elif col.lower() == "dirección" or col.lower() == "direccion":
                     values.append(str(row_data.get('direccion', "")))
+                elif col.lower() == "teléfono" or col.lower() == "telefono":
+                    values.append(str(row_data.get('telefono', "")))
+                elif col.lower() == "email":
+                    values.append(str(row_data.get('email', "")))
+                elif col.lower() == "responsable":
+                    values.append(str(row_data.get('responsable', "")))
                 elif col.lower() == "nombres":
                     values.append(str(row_data.get('nombres', "")))
                 elif col.lower() == "apellidos":

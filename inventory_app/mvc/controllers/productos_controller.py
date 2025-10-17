@@ -82,8 +82,8 @@ class ProductosController(BaseController):
     
     def _create_producto(self, data: Dict[str, Any]) -> bool:
         """Crea un nuevo producto"""
-        if not self.validate_user_permission("ADMIN"):
-            raise PermissionError("Solo los administradores pueden crear productos")
+        if not self.has_any_role(["ADMIN", "ENCARGADO"]):
+            raise PermissionError("Solo administradores y encargados pueden crear productos")
         
         sku = data.get('sku')
         nombre = data.get('nombre')
@@ -110,8 +110,8 @@ class ProductosController(BaseController):
     
     def _edit_producto(self, data: Dict[str, Any]) -> bool:
         """Edita un producto"""
-        if not self.validate_user_permission("ADMIN"):
-            raise PermissionError("Solo los administradores pueden editar productos")
+        if not self.has_any_role(["ADMIN", "ENCARGADO"]):
+            raise PermissionError("Solo administradores y encargados pueden editar productos")
         
         producto_id = data.get('id')
         sku = data.get('sku')
@@ -138,9 +138,9 @@ class ProductosController(BaseController):
         return True
     
     def _delete_producto(self, data: Dict[str, Any]) -> bool:
-        """Elimina un producto"""
-        if not self.validate_user_permission("ADMIN"):
-            raise PermissionError("Solo los administradores pueden eliminar productos")
+        """Elimina un producto (solo deshabilita)"""
+        if not self.has_any_role(["ADMIN", "ENCARGADO"]):
+            raise PermissionError("Solo administradores y encargados pueden eliminar productos")
         
         producto_id = data.get('id')
         if not producto_id:

@@ -15,6 +15,7 @@ from inventory_app.infra.sqlite_repos import (
     SQLiteRepoEmpleados,
 )
 from inventory_app.services.inventory_service import InventarioService
+from inventory_app.services.usuarios_service import UsuariosService
 from inventory_app.mvc.models import InventoryModels, UserModels
 from inventory_app.mvc.controllers import DashboardController
 from inventory_app.mvc.views import DashboardView
@@ -52,9 +53,11 @@ class MVCApp:
             SQLiteRepoEmpleados(),
         )
         
+        self.user_service = UsuariosService(SQLiteRepoUsuarios())
+        
         # Crear modelos MVC
         self.inventory_models = InventoryModels(self.inventory_service)
-        self.user_models = UserModels()
+        self.user_models = UserModels(self.user_service)
         
         # Cargar datos de demo
         self._bootstrap_demo_data()
@@ -65,10 +68,10 @@ class MVCApp:
         if not self.inventory_service.listar_tiendas():
             from inventory_app.infra.db import get_conn, _hash_pw
             
-            # 1. Crear tiendas
-            t1 = self.inventory_service.crear_tienda("Tienda Centro", "Av. Principal 123, Lima")
-            t2 = self.inventory_service.crear_tienda("Tienda Norte", "Av. Túpac Amaru 456, Lima")
-            t3 = self.inventory_service.crear_tienda("Tienda Sur", "Av. Aviación 789, Lima")
+            # 1. Crear tiendas (sin responsable aún, se asignará después)
+            t1 = self.inventory_service.crear_tienda("Tienda Centro", "Av. Principal 123, Lima", "01-234-5678", "centro@tienda.com")
+            t2 = self.inventory_service.crear_tienda("Tienda Norte", "Av. Túpac Amaru 456, Lima", "01-345-6789", "norte@tienda.com")
+            t3 = self.inventory_service.crear_tienda("Tienda Sur", "Av. Aviación 789, Lima", "01-456-7890", "sur@tienda.com")
             
             # 2. Crear usuarios con nuevos roles
             with get_conn() as c:
@@ -97,10 +100,16 @@ class MVCApp:
             u_juan = SQLiteRepoUsuarios().autenticar("juan", "123")
             u_ana = SQLiteRepoUsuarios().autenticar("ana", "123")
             
-            self.inventory_service.crear_empleado(u_carlos.id, "Carlos", "Rodríguez", "12345678", "COMPLETA", t1.id)
-            self.inventory_service.crear_empleado(u_maria.id, "María", "González", "87654321", "COMPLETA", t2.id)
-            self.inventory_service.crear_empleado(u_juan.id, "Juan", "Pérez", "11223344", "COMPLETA", t3.id)
-            self.inventory_service.crear_empleado(u_ana.id, "Ana", "Torres", "55667788", "MEDIA", t1.id)
+            e_carlos = self.inventory_service.crear_empleado(u_carlos.id, "Carlos", "Rodríguez", "12345678", "COMPLETA", t1.id)
+            e_maria = self.inventory_service.crear_empleado(u_maria.id, "María", "González", "87654321", "COMPLETA", t2.id)
+            e_juan = self.inventory_service.crear_empleado(u_juan.id, "Juan", "Pérez", "11223344", "COMPLETA", t3.id)
+            e_ana = self.inventory_service.crear_empleado(u_ana.id, "Ana", "Torres", "55667788", "MEDIA", t1.id)
+            
+            # Asignar responsables a las tiendas (Carlos y María son ENCARGADOS)
+            with get_conn() as c:
+                c.execute("UPDATE tiendas SET responsable_id=? WHERE id=?", (e_carlos.id, t1.id))
+                c.execute("UPDATE tiendas SET responsable_id=? WHERE id=?", (e_maria.id, t2.id))
+                # t3 (Tienda Sur) queda sin responsable por ahora (Juan es VENDEDOR)
             
             # 4. Crear productos
             # Tienda Centro

@@ -11,22 +11,39 @@ class TiendasController(BaseController):
     """Controlador para la gestión de tiendas"""
     
     def get_data(self) -> List[Dict[str, Any]]:
-        """Obtiene todas las tiendas"""
+        """Obtiene todas las tiendas con información completa"""
         tiendas = self.inventory_models.get_tiendas()
-        return [
-            {
+        result = []
+        
+        for t in tiendas:
+            # Obtener nombre del responsable si existe
+            responsable_nombre = "Sin asignar"
+            if t.responsable_id:
+                try:
+                    empleado = self.inventory_models.inventory_service.obtener_empleado_por_id(t.responsable_id)
+                    if empleado:
+                        responsable_nombre = f"{empleado.nombres} {empleado.apellidos}"
+                except Exception as e:
+                    print(f"Error al obtener responsable: {e}")
+            
+            result.append({
                 'id': t.id,
                 'nombre': t.nombre,
-                'direccion': t.direccion or ''
-            }
-            for t in tiendas
-        ]
+                'direccion': t.direccion or '',
+                'telefono': t.telefono or '',
+                'email': t.email or '',
+                'responsable': responsable_nombre
+            })
+        
+        return result
     
     def handle_action(self, action: str, data: Dict[str, Any]) -> bool:
         """Maneja las acciones de la vista de tiendas"""
         try:
             if action == "create_tienda":
                 return self._create_tienda(data)
+            elif action == "edit_tienda":
+                return self._edit_tienda(data)
             elif action == "delete_tienda":
                 return self._delete_tienda(data)
             else:
@@ -43,9 +60,31 @@ class TiendasController(BaseController):
         if not nombre:
             raise ValueError("El nombre de la tienda es requerido")
         
-        direccion = data.get('direccion', '')
-        self.inventory_models.create_tienda(nombre, direccion)
+        direccion = data.get('direccion')
+        telefono = data.get('telefono')
+        email = data.get('email')
+        responsable_id = data.get('responsable_id')
+        
+        self.inventory_models.create_tienda(nombre, direccion, telefono, email, responsable_id)
         return True
+    
+    def _edit_tienda(self, data: Dict[str, Any]) -> bool:
+        """Edita una tienda existente"""
+        if not self.validate_user_permission("ADMIN"):
+            raise PermissionError("Solo los administradores pueden editar tiendas")
+        
+        tienda_id = data.get('tienda_id')
+        nombre = data.get('nombre')
+        
+        if not tienda_id or not nombre:
+            raise ValueError("ID de tienda y nombre son requeridos")
+        
+        direccion = data.get('direccion')
+        telefono = data.get('telefono')
+        email = data.get('email')
+        responsable_id = data.get('responsable_id')
+        
+        return self.inventory_models.update_tienda(tienda_id, nombre, direccion, telefono, email, responsable_id)
     
     def _delete_tienda(self, data: Dict[str, Any]) -> bool:
         """Elimina una tienda"""

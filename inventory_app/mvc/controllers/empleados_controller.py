@@ -110,7 +110,7 @@ class EmpleadosController(BaseController):
         
         username = data.get('username')
         password = data.get('password')
-        rol = data.get('rol', 'OPERADOR')
+        rol = data.get('rol', 'VENDEDOR')  # ✅ Valor por defecto actualizado
         
         if not username or not password:
             raise ValueError("Usuario y contraseña son requeridos")
@@ -125,7 +125,7 @@ class EmpleadosController(BaseController):
         
         username = data.get('username')
         password = data.get('password')
-        rol = data.get('rol', 'OPERADOR')
+        rol = data.get('rol', 'VENDEDOR')  # ✅ Valor por defecto actualizado
         nombres = data.get('nombres')
         apellidos = data.get('apellidos')
         dni = data.get('dni')
@@ -153,7 +153,7 @@ class EmpleadosController(BaseController):
         usuario_id = data.get('usuario_id')
         username = data.get('username')
         password = data.get('password')  # Opcional
-        rol = data.get('rol', 'OPERADOR')
+        rol = data.get('rol', 'VENDEDOR')  # ✅ Valor por defecto actualizado
         nombres = data.get('nombres')
         apellidos = data.get('apellidos')
         dni = data.get('dni')

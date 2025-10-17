@@ -2,9 +2,8 @@
 # File: inventory_app/domain/interfaces.py
 # ==============================
 from __future__ import annotations
-from typing import List, Optional, Iterable, Protocol, Tuple
+from typing import List, Optional, Iterable, Tuple, Dict, Any
 from abc import ABC, abstractmethod
-import sqlite3
 
 from .models import Usuario, Tienda, Producto, Empleado
 
@@ -34,6 +33,9 @@ class RepoEmpleados(ABC):
     def obtener_empleado_por_usuario(self, usuario_id: int) -> Optional[Empleado]: ...
     
     @abstractmethod
+    def obtener_empleado_por_id(self, empleado_id: int) -> Optional[Empleado]: ...
+    
+    @abstractmethod
     def actualizar_empleado(self, empleado_id: int, nombres: str, apellidos: str, dni: str, jornada: str, tienda_id: int) -> bool: ...
     
     @abstractmethod
@@ -42,10 +44,20 @@ class RepoEmpleados(ABC):
 
 class RepoTiendas(ABC):
     @abstractmethod
-    def crear_tienda(self, nombre: str, direccion: Optional[str]) -> Tienda: ...
+    def crear_tienda(self, nombre: str, direccion: Optional[str] = None, 
+                     telefono: Optional[str] = None, email: Optional[str] = None,
+                     responsable_id: Optional[int] = None) -> Tienda: ...
 
     @abstractmethod
     def listar_tiendas(self) -> List[Tienda]: ...
+    
+    @abstractmethod
+    def actualizar_tienda(self, tienda_id: int, nombre: str, direccion: Optional[str] = None,
+                         telefono: Optional[str] = None, email: Optional[str] = None,
+                         responsable_id: Optional[int] = None) -> bool: ...
+    
+    @abstractmethod
+    def eliminar_tienda(self, tienda_id: int) -> bool: ...
 
 
 class RepoProductos(ABC):
@@ -66,6 +78,9 @@ class RepoProductos(ABC):
     
     @abstractmethod
     def eliminar_producto(self, producto_id: int) -> bool: ...
+    
+    @abstractmethod
+    def buscar_con_stock(self, filtro: str, stock_mayor_a: float) -> List[Dict[str, Any]]: ...
 
 
 class RepoInventario(ABC):
@@ -79,8 +94,14 @@ class RepoInventario(ABC):
     def obtener_stock(self, tienda_id: int, producto_id: int) -> Tuple[float, float]: ...
 
     @abstractmethod
-    def reporte_stock(self, tienda_id: int) -> List[sqlite3.Row]: ...
+    def reporte_stock(self, tienda_id: int) -> List[Dict[str, Any]]: ...
+    
+    @abstractmethod
+    def obtener_movimientos(self, tienda_id: Optional[int], limit: int) -> List[Dict[str, Any]]: ...
 
 
-class Reporte(Protocol):
-    def render(self, filas: Iterable[sqlite3.Row]) -> str: ...
+class Reporte(ABC):
+    @abstractmethod
+    def render(self, filas: Iterable[Dict[str, Any]]) -> str:
+        """Renderiza un reporte a partir de filas de datos"""
+        pass

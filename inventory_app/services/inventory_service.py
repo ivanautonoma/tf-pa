@@ -11,7 +11,7 @@ from .reports import ReporteTablaTexto
 
 
 class InventarioService:
-    def __init__(self, ru: RepoUsuarios, rt: RepoTiendas, rp: RepoProductos, ri: RepoInventario, re: RepoEmpleados = None):
+    def __init__(self, ru: RepoUsuarios, rt: RepoTiendas, rp: RepoProductos, ri: RepoInventario, re: RepoEmpleados):
         self._ru = ru
         self._rt = rt
         self._rp = rp
@@ -23,11 +23,27 @@ class InventarioService:
         return self._ru.autenticar(username, password)
 
     # Tiendas / Almacenes
-    def crear_tienda(self, nombre: str, direccion: Optional[str] = None) -> Tienda:
-        return self._rt.crear_tienda(nombre, direccion)
+    def crear_tienda(self, nombre: str, direccion: Optional[str] = None,
+                     telefono: Optional[str] = None, email: Optional[str] = None,
+                     responsable_id: Optional[int] = None) -> Tienda:
+        return self._rt.crear_tienda(nombre, direccion, telefono, email, responsable_id)
 
     def listar_tiendas(self) -> List[Tienda]:
         return self._rt.listar_tiendas()
+    
+    def actualizar_tienda(self, tienda_id: int, nombre: str, direccion: Optional[str] = None,
+                         telefono: Optional[str] = None, email: Optional[str] = None,
+                         responsable_id: Optional[int] = None) -> bool:
+        """Actualiza una tienda"""
+        return self._rt.actualizar_tienda(tienda_id, nombre, direccion, telefono, email, responsable_id)
+    
+    def eliminar_tienda(self, tienda_id: int) -> bool:
+        """Elimina una tienda"""
+        # Validaciones de negocio
+        tiendas = self._rt.listar_tiendas()
+        if len(tiendas) <= 1:
+            raise ValueError("No se puede eliminar la única tienda")
+        return self._rt.eliminar_tienda(tienda_id)
 
 
     # Productos
@@ -56,6 +72,10 @@ class InventarioService:
     def listar_productos(self, q: str = "") -> List[Producto]:
         return self._rp.listar_productos(q)
     
+    def buscar_productos_con_stock(self, filtro: str = "", stock_mayor_a: float = 0):
+        """Busca productos que tengan stock disponible"""
+        return self._rp.buscar_con_stock(filtro, stock_mayor_a)
+    
     def actualizar_producto(self, producto_id: int, sku: str, nombre: str, descripcion: Optional[str], 
                            unidad: str, precio: float, categoria: Optional[str], proveedor: Optional[str], 
                            stock_minimo: int = 0, activo: bool = True, tienda_id: int = 1) -> bool:
@@ -82,31 +102,25 @@ class InventarioService:
     def items_bajo_minimo(self, tienda_id: int):
         filas = self._ri.reporte_stock(tienda_id)
         return [r for r in filas if r["estado"] in ("SIN STOCK", "BAJO MINIMO")]
+    
+    def obtener_movimientos(self, tienda_id: Optional[int] = None, limit: int = 200):
+        """Obtiene movimientos con información completa"""
+        return self._ri.obtener_movimientos(tienda_id, limit)
 
     # Empleados
     def crear_empleado(self, usuario_id: int, nombres: str, apellidos: str, dni: str, jornada: str, tienda_id: int) -> Empleado:
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.crear_empleado(usuario_id, nombres, apellidos, dni, jornada, tienda_id)
 
     def listar_empleados(self) -> List[Empleado]:
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.listar_empleados()
 
     def obtener_empleado_por_usuario(self, usuario_id: int) -> Optional[Empleado]:
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.obtener_empleado_por_usuario(usuario_id)
 
     def actualizar_empleado(self, empleado_id: int, nombres: str, apellidos: str, dni: str, jornada: str, tienda_id: int) -> bool:
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.actualizar_empleado(empleado_id, nombres, apellidos, dni, jornada, tienda_id)
 
     def eliminar_empleado(self, empleado_id: int) -> bool:
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.eliminar_empleado(empleado_id)
 
     # Método para crear empleado completo (usuario + empleado)
@@ -114,9 +128,6 @@ class InventarioService:
                                nombres: str, apellidos: str, dni: str, 
                                jornada: str, tienda_id: int) -> tuple[Usuario, Empleado]:
         """Crea un usuario y su información de empleado en una sola operación"""
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
-        
         # 1. Crear usuario
         usuario = self._ru.crear_usuario(username, password, rol)
         
@@ -129,6 +140,4 @@ class InventarioService:
     
     def obtener_empleado_por_id(self, empleado_id: int) -> Optional[Empleado]:
         """Obtiene un empleado por su ID"""
-        if not self._re:
-            raise ValueError("Repositorio de empleados no disponible")
         return self._re.obtener_empleado_por_id(empleado_id)

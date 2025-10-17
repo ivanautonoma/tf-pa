@@ -35,7 +35,11 @@ def init_db():
         CREATE TABLE IF NOT EXISTS tiendas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE,
-            direccion TEXT
+            direccion TEXT,
+            telefono TEXT,
+            email TEXT,
+            responsable_id INTEGER,
+            FOREIGN KEY(responsable_id) REFERENCES empleados(id) ON DELETE SET NULL
         );
         """,
         # Productos

@@ -10,12 +10,6 @@ from ..domain.models import Usuario, Tienda, Producto, Empleado
 from ..domain.interfaces import RepoUsuarios, RepoTiendas, RepoProductos, RepoInventario, RepoEmpleados
 from .db import get_conn, _hash_pw
 
-def ajustar_stock(self, almacen_id: int, producto_id: int, delta: float, usuario_id: int, nota: Optional[str] = None) -> None:
-    # No registrar ni tocar stock si el delta es cero
-    if delta == 0:
-        return
-    with get_conn() as c:
-        ...
         
 class SQLiteRepoUsuarios(RepoUsuarios):
     def autenticar(self, username: str, password: str) -> Optional[Usuario]:
@@ -67,19 +61,72 @@ class SQLiteRepoUsuarios(RepoUsuarios):
 
 
 class SQLiteRepoTiendas(RepoTiendas):
-    def crear_tienda(self, nombre: str, direccion: Optional[str]) -> Tienda:
+    def crear_tienda(self, nombre: str, direccion: Optional[str] = None, 
+                     telefono: Optional[str] = None, email: Optional[str] = None,
+                     responsable_id: Optional[int] = None) -> Tienda:
         with get_conn() as c:
-            cur = c.execute("INSERT INTO tiendas(nombre, direccion) VALUES (?,?)", (nombre, direccion))
-            return Tienda(id=cur.lastrowid, nombre=nombre, direccion=direccion)
+            cur = c.execute(
+                "INSERT INTO tiendas(nombre, direccion, telefono, email, responsable_id) VALUES (?,?,?,?,?)", 
+                (nombre, direccion, telefono, email, responsable_id)
+            )
+            return Tienda(
+                id=cur.lastrowid, 
+                nombre=nombre, 
+                direccion=direccion,
+                telefono=telefono,
+                email=email,
+                responsable_id=responsable_id
+            )
 
     def listar_tiendas(self) -> List[Tienda]:
         with get_conn() as c:
             cur = c.execute("SELECT * FROM tiendas ORDER BY nombre")
-            return [Tienda(id=r["id"], nombre=r["nombre"], direccion=r["direccion"]) for r in cur.fetchall()]
+            return [Tienda(
+                id=r["id"], 
+                nombre=r["nombre"], 
+                direccion=r["direccion"] if r["direccion"] else None,
+                telefono=r["telefono"] if r["telefono"] else None,
+                email=r["email"] if r["email"] else None,
+                responsable_id=r["responsable_id"] if r["responsable_id"] else None
+            ) for r in cur.fetchall()]
+    
+    def actualizar_tienda(self, tienda_id: int, nombre: str, direccion: Optional[str] = None,
+                         telefono: Optional[str] = None, email: Optional[str] = None,
+                         responsable_id: Optional[int] = None) -> bool:
+        with get_conn() as c:
+            cur = c.execute(
+                "UPDATE tiendas SET nombre=?, direccion=?, telefono=?, email=?, responsable_id=? WHERE id=?",
+                (nombre, direccion, telefono, email, responsable_id, tienda_id)
+            )
+            return cur.rowcount > 0
+    
+    def eliminar_tienda(self, tienda_id: int) -> bool:
+        with get_conn() as c:
+            cur = c.execute("DELETE FROM tiendas WHERE id=?", (tienda_id,))
+            return cur.rowcount > 0
 
 
 
 class SQLiteRepoProductos(RepoProductos):
+    def _row_to_producto(self, row) -> Optional[Producto]:
+        """Convierte una fila de BD a modelo Producto"""
+        if not row:
+            return None
+        
+        return Producto(
+            id=row["id"],
+            sku=row["sku"],
+            nombre=row["nombre"],
+            descripcion=row["descripcion"] if row["descripcion"] else None,
+            unidad=row["unidad"],
+            precio_unit=row["precio_unit"],
+            categoria=row["categoria"] if row["categoria"] else None,
+            proveedor=row["proveedor"] if row["proveedor"] else None,
+            stock_minimo=row["stock_minimo"] if row["stock_minimo"] is not None else 0,
+            activo=bool(row["activo"] if row["activo"] is not None else 1),
+            tienda_id=row["tienda_id"]
+        )
+    
     def crear_producto(self, sku: str, nombre: str, descripcion: Optional[str], unidad: str, precio: float, 
                       categoria: Optional[str], proveedor: Optional[str], stock_minimo: int = 0, tienda_id: int = 1) -> Producto:
         with get_conn() as c:
@@ -104,22 +151,7 @@ class SQLiteRepoProductos(RepoProductos):
     def buscar_por_sku(self, sku: str) -> Optional[Producto]:
         with get_conn() as c:
             cur = c.execute("SELECT * FROM productos WHERE sku=?", (sku,))
-            r = cur.fetchone()
-            if not r:
-                return None
-            return Producto(
-                id=r["id"], 
-                sku=r["sku"], 
-                nombre=r["nombre"], 
-                descripcion=r["descripcion"] if r["descripcion"] else None,
-                unidad=r["unidad"], 
-                precio_unit=r["precio_unit"],
-                categoria=r["categoria"] if r["categoria"] else None,
-                proveedor=r["proveedor"] if r["proveedor"] else None,
-                stock_minimo=r["stock_minimo"] if r["stock_minimo"] is not None else 0,
-                activo=bool(r["activo"] if r["activo"] is not None else 1),
-                tienda_id=r["tienda_id"]
-            )
+            return self._row_to_producto(cur.fetchone())
 
     def listar_productos(self, q: str = "") -> List[Producto]:
         q_like = f"%{q}%"
@@ -128,21 +160,7 @@ class SQLiteRepoProductos(RepoProductos):
                 "SELECT * FROM productos WHERE sku LIKE ? OR nombre LIKE ? ORDER BY nombre",
                 (q_like, q_like),
             )
-            return [
-                        Producto(
-                            id=r["id"], 
-                            sku=r["sku"], 
-                            nombre=r["nombre"], 
-                            descripcion=r["descripcion"] if r["descripcion"] else None,
-                            unidad=r["unidad"], 
-                            precio_unit=r["precio_unit"],
-                            categoria=r["categoria"] if r["categoria"] else None,
-                            proveedor=r["proveedor"] if r["proveedor"] else None,
-                            stock_minimo=r["stock_minimo"] if r["stock_minimo"] is not None else 0,
-                            activo=bool(r["activo"] if r["activo"] is not None else 1),
-                            tienda_id=r["tienda_id"]
-                        ) for r in cur.fetchall()
-            ]
+            return [self._row_to_producto(r) for r in cur.fetchall()]
     
     def actualizar_producto(self, producto_id: int, sku: str, nombre: str, descripcion: Optional[str], 
                            unidad: str, precio: float, categoria: Optional[str], proveedor: Optional[str], 
@@ -159,6 +177,30 @@ class SQLiteRepoProductos(RepoProductos):
         with get_conn() as c:
             cur = c.execute("DELETE FROM productos WHERE id=?", (producto_id,))
             return cur.rowcount > 0
+    
+    def buscar_con_stock(self, filtro: str = "", stock_mayor_a: float = 0):
+        with get_conn() as c:
+            base_query = """
+                SELECT p.id, p.sku, p.nombre, p.precio_unit, p.categoria, 
+                       t.nombre as tienda_nombre, COALESCE(s.cantidad, 0) as stock
+                FROM productos p
+                JOIN tiendas t ON p.tienda_id = t.id
+                LEFT JOIN stock s ON p.id = s.producto_id AND s.tienda_id = t.id
+                WHERE p.activo = 1 AND COALESCE(s.cantidad, 0) > ?
+            """
+            
+            params = [stock_mayor_a]
+            
+            # Agregar filtro si se proporciona
+            if filtro:
+                base_query += " AND (LOWER(p.sku) LIKE ? OR LOWER(p.nombre) LIKE ? OR LOWER(p.categoria) LIKE ?)"
+                filtro_param = f"%{filtro.lower()}%"
+                params.extend([filtro_param, filtro_param, filtro_param])
+            
+            base_query += " ORDER BY p.sku"
+            
+            productos = c.execute(base_query, params).fetchall()
+            return [dict(row) for row in productos]
 
 
 class SQLiteRepoInventario(RepoInventario):
@@ -207,7 +249,38 @@ class SQLiteRepoInventario(RepoInventario):
         ORDER BY p.nombre
         """
         with get_conn() as c:
-            return list(c.execute(sql, (tienda_id,)))
+            return [dict(row) for row in c.execute(sql, (tienda_id,))]
+    
+    def obtener_movimientos(self, tienda_id: Optional[int] = None, limit: int = 200):
+        with get_conn() as c:
+            if tienda_id:
+                query = """
+                    SELECT m.id, m.producto_id, p.sku, p.nombre as producto_nombre, 
+                           m.tipo, m.cantidad, m.usuario_id, u.username, 
+                           t.nombre as tienda_nombre, m.ts, m.nota
+                    FROM movimientos m
+                    JOIN productos p ON m.producto_id = p.id
+                    JOIN usuarios u ON m.usuario_id = u.id
+                    JOIN tiendas t ON m.tienda_id = t.id
+                    WHERE t.id = ?
+                    ORDER BY m.ts DESC LIMIT ?
+                """
+                params = (tienda_id, limit)
+            else:
+                query = """
+                    SELECT m.id, m.producto_id, p.sku, p.nombre as producto_nombre, 
+                           m.tipo, m.cantidad, m.usuario_id, u.username, 
+                           t.nombre as tienda_nombre, m.ts, m.nota
+                    FROM movimientos m
+                    JOIN productos p ON m.producto_id = p.id
+                    JOIN usuarios u ON m.usuario_id = u.id
+                    JOIN tiendas t ON m.tienda_id = t.id
+                    ORDER BY m.ts DESC LIMIT ?
+                """
+                params = (limit,)
+            
+            movimientos = c.execute(query, params).fetchall()
+            return [dict(m) for m in movimientos]
 
 
 class SQLiteRepoEmpleados(RepoEmpleados):

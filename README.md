@@ -53,23 +53,27 @@ python main.py
 
 ### ADMIN (Administrador)
 
--   ✅ Gestionar tiendas, empleados y productos
+-   ✅ Gestionar tiendas (crear, editar, eliminar)
+-   ✅ Gestionar empleados (crear, editar, eliminar)
+-   ✅ Gestionar productos (crear, editar, eliminar)
 -   ✅ Registrar ingresos y salidas
 -   ✅ Acceso total a todos los reportes
 
 ### ENCARGADO (Jefe de Tienda)
 
+-   ✅ Gestionar productos (crear, editar, eliminar)
 -   ✅ Registrar INGRESOS de mercancía
 -   ✅ Registrar salidas/ventas
 -   ✅ Consultar productos y reportes
--   ❌ No puede crear/editar productos ni empleados
+-   ❌ No puede gestionar tiendas ni empleados
 
 ### VENDEDOR (Cajero)
 
--   ✅ Registrar SALIDAS (ventas)
 -   ✅ Consultar productos y reportes
+-   ✅ Registrar SALIDAS (ventas)
 -   ❌ No puede registrar ingresos
 -   ❌ No puede crear/editar productos
+-   ❌ No puede gestionar tiendas ni empleados
 
 ## 📂 Estructura del Proyecto
 

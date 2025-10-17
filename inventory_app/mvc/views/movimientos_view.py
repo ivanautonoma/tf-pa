@@ -697,27 +697,27 @@ class MovimientosView(BaseView):
                 
             except ValueError:
                 self.show_error("Error", "La cantidad debe ser un número válido")
-                    return
+                return
                 
             # Obtener ID de tienda
             tienda_id = int(tienda_var.get().split(' - ')[0])
                 
             # Registrar ingreso
-                success = self.on_action("handle_view_action", {
-                    "view_name": "movimientos",
-                    "action": "registrar_ingreso",
-                    "action_data": {
+            success = self.on_action("handle_view_action", {
+                "view_name": "movimientos",
+                "action": "registrar_ingreso",
+                "action_data": {
                     "producto_id": int(producto_data['id']),
-                        "tienda_id": tienda_id,
+                    "tienda_id": tienda_id,
                     "cantidad": cantidad_float,
                     "nota": nota_var.get().strip() or None
-                    }
-                })
+                }
+            })
                 
-                if success:
+            if success:
                 form_window.destroy()
                 self.refresh_data()
-                    self.show_info("Éxito", "Ingreso registrado correctamente")
+                self.show_info("Éxito", "Ingreso registrado correctamente")
             else:
                 self.show_error("Error", "No se pudo registrar el ingreso")
                     

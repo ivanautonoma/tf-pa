@@ -266,3 +266,7 @@ class InventoryModels:
                     estado=a['estado']
                 ))
         return result
+    
+    def get_empleado_by_user_id(self, user_id: int):
+        """Obtiene un empleado por su ID de usuario"""
+        return self.inventory_service.obtener_empleado_por_usuario(user_id)

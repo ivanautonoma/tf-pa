@@ -41,9 +41,14 @@ class BaseController(ABC):
     
     def get_user_info(self) -> Dict[str, Any]:
         """Obtiene información del usuario actual"""
+        # Obtener información del empleado asociado al usuario
+        empleado = self.inventory_models.get_empleado_by_user_id(self.current_user.id)
+        tienda_id = empleado.tienda_id if empleado else None
+        
         return {
             'id': self.current_user.id,
             'username': self.current_user.username,
             'rol': self.current_user.rol,
-            'activo': self.current_user.activo
+            'activo': self.current_user.activo,
+            'tienda_id': tienda_id
         }

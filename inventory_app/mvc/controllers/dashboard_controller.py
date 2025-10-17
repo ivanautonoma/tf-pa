@@ -31,8 +31,9 @@ class DashboardController(BaseController):
     
     def get_data(self) -> Dict[str, Any]:
         """Obtiene los datos del dashboard"""
+        user_info = self.get_user_info()
         return {
-            'user_info': self.get_user_info(),
+            'user_info': user_info,
             'allowed_views': self.allowed_views,
             'current_view': self.current_view,
             'tiendas': self._get_tiendas_for_selector()

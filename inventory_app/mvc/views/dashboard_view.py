@@ -203,10 +203,37 @@ class DashboardView:
         try:
             dashboard_data = self.on_action("get_dashboard_data", {})
             tiendas = dashboard_data.get('tiendas', [])
+            user_info = self.on_action("get_user_info", {})
+            user_rol = user_info.get('rol')
+            
             store_values = ["Todos"] + [t['display'] for t in tiendas]
             self.store_combo['values'] = store_values
-            # Seleccionar "Todos" por defecto
-            self.store_combo.current(0)
+            
+            # Configurar según el rol del usuario
+            if user_rol == "ADMIN":
+                # ADMIN puede ver todas las tiendas, seleccionar "Todos" por defecto
+                self.store_combo.current(0)
+                self.store_combo.config(state="readonly")
+            else:
+                # VENDEDOR y ENCARGADO ven solo su tienda asignada
+                user_tienda_id = user_info.get('tienda_id')
+                if user_tienda_id:
+                    # Buscar la tienda del usuario en la lista
+                    for i, tienda in enumerate(tiendas):
+                        if tienda['id'] == user_tienda_id:
+                            # Seleccionar la tienda del usuario (índice + 1 porque "Todos" está en 0)
+                            self.store_combo.current(i + 1)
+                            break
+                    else:
+                        # Si no se encuentra la tienda, seleccionar "Todos"
+                        self.store_combo.current(0)
+                else:
+                    # Si no tiene tienda asignada, seleccionar "Todos"
+                    self.store_combo.current(0)
+                
+                # Deshabilitar el selector para usuarios no-ADMIN
+                self.store_combo.config(state="disabled")
+                
         except Exception as e:
             print(f"Error al cargar tiendas: {e}")
     

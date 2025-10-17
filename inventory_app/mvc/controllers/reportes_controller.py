@@ -15,6 +15,10 @@ class ReportesController(BaseController):
         self.tienda_filtro = None
         self.status_filtro = "todos"
         self.search_filtro = ""
+        # Para usuarios no-ADMIN, filtrar automáticamente por su tienda asignada
+        if self.current_user.rol != "ADMIN":
+            user_info = self.get_user_info()
+            self.tienda_filtro = user_info.get('tienda_id')
     
     def get_data(self) -> List[Dict[str, Any]]:
         """Obtiene el reporte de stock"""

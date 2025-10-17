@@ -13,6 +13,10 @@ class MovimientosController(BaseController):
     def __init__(self, inventory_models, user_models, current_user):
         super().__init__(inventory_models, user_models, current_user)
         self.tienda_filtro = None
+        # Para usuarios no-ADMIN, filtrar automáticamente por su tienda asignada
+        if self.current_user.rol != "ADMIN":
+            user_info = self.get_user_info()
+            self.tienda_filtro = user_info.get('tienda_id')
     
     def get_data(self) -> List[Dict[str, Any]]:
         """Obtiene los movimientos de inventario"""
